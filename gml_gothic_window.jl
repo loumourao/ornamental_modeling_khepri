@@ -39,7 +39,6 @@ function gothic_window(center, width, height, arch_excess, recursion_level, dist
     main = main_arch(center, width, height, arch_excess)
 
     if recursion_level > 0
-        print(distance_to_sub_arch)
         sub_arch_width = width/2
         sub_arch_height = height - distance_to_sub_arch[1]
         sub_archs_centers = get_displaced_sub_archs_centers(center, sub_arch_width, distance_to_sub_arch[1])
@@ -49,4 +48,4 @@ function gothic_window(center, width, height, arch_excess, recursion_level, dist
     end
 end
 
-gothic_window(xy(0,0), 10, 10, 1, 2, [3, 3])
+gothic_window(xy(0,0), 10, 10, 1, 2, [3,3])
