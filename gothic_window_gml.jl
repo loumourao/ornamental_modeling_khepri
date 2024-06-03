@@ -12,47 +12,110 @@ window_dict = Dict(
                     "Style" => 0
                   )
 
-# Define 5.32 below
-
-# Define 5.33 below
-
-# Define 5.36 below
-
-# Define line_2pt below
+# Utility functions begin
+# IMPORTANT: For now, the normal is always pointing towards the viewer
 function line_2pt(p0, p1, t)
-    return (1 - t) * p0 + t * p1
+    return p0 + (p1 - p0) * t
 end
 
-# Define intersect_circles below
 function intersect_circles(m0, r0, m1, r1, nrml)
-    circle_center_distance = distance(m0, m1)
+    d = distance(m0, m1)
 
-    if circle_center_distance > r0 + r1 || circle_center_distance < abs(r0 - r1)
+    # IMPORTANT: d == 0 prevents the set of interesection points when both circles overlap
+    if d > r0 + r1 || d < abs(r0 - r1) || d == 0
         return nothing
     
-    m0_to_intersection_axis_midpoint = (r0^2 - r1^2 + circle_center_distance^2) / (2 * circle_center_distance)
-    intersection_axis_midpoint = m0 + m0_to_intersection_axis_midpoint * (m1 - m0) / d
-    intersection_axis_midpoint_to_intersection_point = sqrt(r^2 - m0_to_intersection_axis_midpoint^2)
-    intersection_axis_midpoint_to_intersection_point = intersection_axis_midpoint_to_intersection_point * [m1[1] - m0[1], m1[0] - m0[0]] / circle_center_distance
-
-    first_intersection_point = intersection_axis_midpoint + intersection_axis_midpoint_to_intersection_point
-    second_intersection_point = intersection_axis_midpoint - intersection_axis_midpoint_to_intersection_point
+    a = (r0^2 - r1^2 + d^2) / (2 * d)
+    p = m0 + a * (m1 - m0) / d
+    c = sqrt(r0^2 - a^2)
+    c_vector = cross(m1 - m0, nrml)
+    c_vector = c_vector / norm(c_vector) * c
+    
+    # TODO: Refactor the line below to execute the dot product correctly
+    if cross(nrml, c_vector) * (m1 - m0) > 0
+        first_intersection_point = p + c_vector
+        second_intersection_point = p - c_vector
+    else
+        first_intersection_point = p - c_vector
+        second_intersection_point = p + c_vector
+    end
 
     return [first_intersection_point, second_intersection_point]
 end
+
+function move_2pt(p, q, t)
+    v = q - p
+    return p + v / norm(v) * t
+end
+
+function circle_seg_aux(a, m, b, n_points)
+    ma = a - m
+    mb = b - m
+    # TODO: Refactor the line below to execute the dot product correctly
+    angle = acos(ma * mb / (norm(ma) * norm(mb))) / (n_points + 1)
+    rad = norm(ma)
+    circle_seg = [a]
+
+    for i = 1:n_points
+        push!(circle_seg, m + vpol(rad, angle * i))
+    end
+
+    push!(circle_seg, b)
+
+    return circle_seg
+end
+
+function circle_seg(point_array, nrml, n, mode)
+    a = point_array[1]
+    m = point_array[2]
+    b = point_array[3]
+
+    ma = a - m
+    mb = b - m
+
+    # TODO: Refactor the line below to execute the dot product correctly
+    if cross(ma, mb) * nrml < 0
+        prev_b = b
+        b = a
+        a = prev_b
+    end
+
+    if mode == 0
+        circle_seg = circle_seg_aux(a, m, b, n)
+    elseif mode == 1
+        circle_seg = circle_seg_aux(a, m, b, n + 1)
+    elseif mode == 2
+        # TODO: Ask for help here
+    end
+
+    return circle_seg
+end
+# Utility functions end
 
 # Pointed Arch
 function gw_pointed_arch(pL, pR, excess, offset, nrml)
     mR = line_2pt(pR, pL, excess)
     mL = line_2pt(pL, pR, excess)
-    rad = (distance(pL, pR) * excess) - offset
-    qT = intersect_circles(mL, rad, mR, rad, nrml) # pop the value that doesn't interest us
+    rad = distance(pL, pR) * excess - offset
+    qT = intersect_circles(mL, rad, mR, rad, nrml)[1]
+    
+    left_circle_segment = [qT, mL, move_2pt(pL, pR, offset)]
+    right_circle_segment = [move_2pt(pR, pL, offset), mR, qT]
+    
+    return [left_circle_segment, right_circle_segment, rad]
 end
 
-# Define 5.38 below
+function gw_polygon_2arcs_height(kseg, nrml, hb, arcR, arcL)
+    bR = arcR[1]
+    bL = arcL[3]
+    
+    bR = xyz(bR.x, bR.y, hb)
+    bL = xyz(bL.x, bL.y, hb)
 
-# Define 5.39 below
-
-# Define circle_seg below
-
-# Define move_2pt below
+    polygon = [bR]
+    push!(polygon, circle_seg(arcR, nrml, kseg, 1)[1:end-1])
+    push!(polygon, circle_seg(arcL, nrml, kseg, 1))
+    push!(polygon, bL)
+    
+    return collect(Iterators.flatten(polygon))
+end
