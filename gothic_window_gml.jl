@@ -1,4 +1,5 @@
 using Khepri
+using LinearAlgebra
 backend(autocad)
 
 windowdict = Dict(
@@ -13,7 +14,6 @@ windowdict = Dict(
                   )
 
 # Utility functions begin
-# IMPORTANT: For now, the normal is always pointing towards the viewer
 function line_2pt(p0, p1, t)
     return p0 + (p1 - p0) * t
 end
@@ -24,15 +24,15 @@ function intersect_circles(m0, r0, m1, r1, nrml)
     # IMPORTANT: d == 0 prevents the set of interesection points when both circles overlap
     if d > r0 + r1 || d < abs(r0 - r1) || d == 0
         return nothing
-    
+    end
+
     a = (r0^2 - r1^2 + d^2) / (2 * d)
     p = m0 + a * (m1 - m0) / d
     c = sqrt(r0^2 - a^2)
     c_vector = cross(m1 - m0, nrml)
     c_vector = c_vector / norm(c_vector) * c
     
-    # TODO: Refactor the line below to execute the dot product correctly
-    if cross(nrml, c_vector) * (m1 - m0) > 0
+    if dot(cross(nrml, c_vector), (m1 - m0)) > 0
         first_intersection_point = p + c_vector
         second_intersection_point = p - c_vector
     else
@@ -48,16 +48,43 @@ function move_2pt(p, q, t)
     return p + v / norm(v) * t
 end
 
-function circle_seg_aux(a, m, b, n_points)
-    ma = a - m
-    mb = b - m
-    # TODO: Refactor the line below to execute the dot product correctly
-    angle = acos(ma * mb / (norm(ma) * norm(mb))) / (n_points + 1)
-    rad = norm(ma)
+function get_plane_to_xy_projection_matrix(nrml)
+    nrml_normalized = norm(nrml)
+    k = vxyx(0, 0, 1)
+    cos_theta = dot(nrml_normalized, k)
+    sin_theta = cross(nrml_normalized, k)
+    u = norm(cross(nrml_normalized, k))
+
+    a = cos_theta + u.x^2 * (1 - cos_theta)
+    b = u.x * u.y * (1 - cos_theta)
+    c = u.y * sin_theta
+    d = cos_theta + u.y^2 * (1 - cos_theta)
+    e = u.x * sin_theta
+
+    return [a b c; b d e; -c -e cos_theta]
+end
+
+function get_projected_points(point_array, projection_matrix)
+    point_array = reduce(vcat, [[x.x x.y x.z] for x in point_array])
+    projected_points = point_array * projection_matrix
+    projected_points = [xyz(projected_points[row_index, :][1],
+                            projected_points[row_index, :][2],
+                            projected_points[row_index, :][3]) for row_index in 1:size(projected_points, 1)]
+    
+    return projected_points
+end
+
+function circle_seg_aux(a, m, b, rad, n_points)
+    current_angle = atan(a.y, a.x)
+    angle = atan(b.y, b.x) - current_angle
+    angle_increment = angle / n_points
+
     circle_seg = [a]
 
-    for i = 1:n_points
-        push!(circle_seg, m + vpol(rad, angle * i))
+    while n_points > 0
+        current_angle += angle_increment
+        push!(circle_seg, m + vpol(rad, current_angle))
+        n_points -= 1
     end
 
     push!(circle_seg, b)
@@ -66,30 +93,25 @@ function circle_seg_aux(a, m, b, n_points)
 end
 
 function circle_seg(point_array, nrml, n, mode)
+    point_array = get_projected_points(point_array, get_plane_to_xy_projection_matrix(nrml))
     a = point_array[1]
     m = point_array[2]
     b = point_array[3]
 
-    ma = a - m
-    mb = b - m
-
-    # TODO: Refactor the line below to execute the dot product correctly
-    if cross(ma, mb) * nrml < 0
-        prev_b = b
-        b = a
-        a = prev_b
-    end
-
     if mode == 0
-        circle_seg = circle_seg_aux(a, m, b, n)
+        circle_seg = circle_seg_aux(a, m, b, distance(a, m), n)
     elseif mode == 1
-        circle_seg = circle_seg_aux(a, m, b, n + 1)
+        circle_seg = circle_seg_aux(a, m, b, distance(a, m), n + 1)
     elseif mode == 2
         # TODO: Ask for help here
     end
 
+    circle_seg = get_projected_points(circle_seg, inv(get_plane_to_xy_projection_matrix(nrml)))
+
     return circle_seg
 end
+
+print(circle_seg([xyz(0,5,0), xyz(3,0,0), xyz(-3,0,0)], vxyz(0,0,1), 1, 0))
 
 function midpoint_2pt(a, b)
     x = (a.x + b.x) / 2
@@ -127,7 +149,8 @@ function intersect_line_ellipse(p0, p1, m0, m1, r)
 
     if length(t_values) == 0
         return nothing
-    
+    end
+
     t_values = sort(t_values)
     t0 = t_values[1]
     t1 = t_values[2]
@@ -152,6 +175,7 @@ function gw_pointed_arch(pL, pR, excess, offset, nrml)
     return [left_circle_segment, right_circle_segment, rad]
 end
 
+# IMPORTANT - THIS ASSUMES THAT HEIGHT CORRESPONDS TO THE Z-AXIS!!!
 function gw_polygon_2arcs_height(arcL, arcR, hb, nrml, kseg)
     bR = arcR[1]
     bL = arcL[3]
@@ -166,6 +190,9 @@ function gw_polygon_2arcs_height(arcL, arcR, hb, nrml, kseg)
     
     return polygon
 end
+
+arcs = gw_pointed_arch(xyz(-3,0,0), xyz(3,0,0), 1, 0, vxyz(0,-1,0))
+polygon = gw_polygon_2arcs_height(arcs[1], arcs[2], -6, vxyz(0,-1,0), 0)
 
 function gw_compute_arcs_rosette(pL, pR, nrml, excess, bdOuter, arcDown, bdInner)
     arch = gw_pointed_arch(pL, pR, excess, bdOuter, nrml)
@@ -191,7 +218,7 @@ function gw_compute_arcs_rosette(pL, pR, nrml, excess, bdOuter, arcDown, bdInner
     rosetteMid = intersect_line_ellipse(pM + vxyz(0, 0, 1), pM - vxyz(0, 0, 1), arcLR[2], arcR[2], rad + radL + bdInner)[1]
     rosetteRad = distance(rosetteMid, arcLR[2]) - radL - bdInner
 
-    return [arcLL, arcLR, arcRL, rosetteMid, rosetteRad]
+    return [arcLL, arcLR, arcRL, arcRR, rosetteMid, rosetteRad]
 end
 
 function gw_gothic_window(edgeWall, edgeBack, pBaseL, pBaseR, windowdict)
