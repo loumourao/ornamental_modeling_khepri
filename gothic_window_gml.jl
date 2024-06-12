@@ -1,6 +1,4 @@
-using Khepri
-using LinearAlgebra
-backend(autocad)
+using KhepriAutoCAD
 
 windowdict = Dict(
                     "excess" => 1.25,
@@ -48,70 +46,34 @@ function move_2pt(p, q, t)
     return p + v / norm(v) * t
 end
 
-function get_plane_to_xy_projection_matrix(nrml)
-    nrml_normalized = norm(nrml)
-    k = vxyx(0, 0, 1)
-    cos_theta = dot(nrml_normalized, k)
-    sin_theta = cross(nrml_normalized, k)
-    u = norm(cross(nrml_normalized, k))
-
-    a = cos_theta + u.x^2 * (1 - cos_theta)
-    b = u.x * u.y * (1 - cos_theta)
-    c = u.y * sin_theta
-    d = cos_theta + u.y^2 * (1 - cos_theta)
-    e = u.x * sin_theta
-
-    return [a b c; b d e; -c -e cos_theta]
-end
-
-function get_projected_points(point_array, projection_matrix)
-    point_array = reduce(vcat, [[x.x x.y x.z] for x in point_array])
-    projected_points = point_array * projection_matrix
-    projected_points = [xyz(projected_points[row_index, :][1],
-                            projected_points[row_index, :][2],
-                            projected_points[row_index, :][3]) for row_index in 1:size(projected_points, 1)]
-    
-    return projected_points
-end
-
 function circle_seg_aux(a, m, b, rad, n_points)
-    current_angle = atan(a.y, a.x)
-    angle = atan(b.y, b.x) - current_angle
-    angle_increment = angle / n_points
+    ma = a - m
+    mb = b - m
+    c = loc_from_o_vx_vy(m, ma, mb)
+    angle = angle_between(ma, mb)
 
-    circle_seg = [a]
-
-    while n_points > 0
-        current_angle += angle_increment
-        push!(circle_seg, m + vpol(rad, current_angle))
-        n_points -= 1
+    circle_seg = map_division(0, angle, n_points) do angle_increment
+        c + vpol(rad, angle_increment, c.cs)
     end
-
-    push!(circle_seg, b)
 
     return circle_seg
 end
 
 function circle_seg(point_array, nrml, n, mode)
-    point_array = get_projected_points(point_array, get_plane_to_xy_projection_matrix(nrml))
     a = point_array[1]
     m = point_array[2]
     b = point_array[3]
 
     if mode == 0
-        circle_seg = circle_seg_aux(a, m, b, distance(a, m), n)
-    elseif mode == 1
         circle_seg = circle_seg_aux(a, m, b, distance(a, m), n + 1)
+    elseif mode == 1
+        circle_seg = circle_seg_aux(a, m, b, distance(a, m), n + 2)
     elseif mode == 2
         # TODO: Ask for help here
     end
 
-    circle_seg = get_projected_points(circle_seg, inv(get_plane_to_xy_projection_matrix(nrml)))
-
     return circle_seg
 end
-
-print(circle_seg([xyz(0,5,0), xyz(3,0,0), xyz(-3,0,0)], vxyz(0,0,1), 1, 0))
 
 function midpoint_2pt(a, b)
     x = (a.x + b.x) / 2
