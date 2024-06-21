@@ -124,7 +124,41 @@ function intersect_line_ellipse(p0, p1, m0, m1, r)
 end
 # Utility functions end
 
-# Pointed Arch
+# Window style begin
+function style_main_arch(poly, bdOuter, wallSetback, edgeWall, edgeBack)
+    #set current material grey
+    poly = line(poly)
+    #make hole in wall face
+    extrusion_vector = vxyz(bdOuter / 4, -wallSetback, 5)
+    extrusion(poly, extrusion_vector)
+end
+
+function style_fillet(poly, edgeWall, edgeBack)
+    #set current material green
+    edge = line(poly)
+    #set current material gold
+    #make hole in wall face
+    extrusion(edge, vxyz(0.05, -0.3, 5))
+end
+
+function style_rosette(poly, edgeWall, edgeBack, mid, rad)
+    #set current material red
+    edge = line(poly)
+    #make hole in wall face
+    #set current material gold
+    extrusion(edge, vxyz(0.05, -0.3, 5))
+end
+
+function style_sub_arch(poly, edgeWall, edgeBack, arcL, bh)
+    #set current material blue
+    edge = line(poly)
+    #make hole in wall face
+    #set current material gold
+    extrusion(edge, vxyz(0.05, -0.3, 5))
+end
+# Window style end
+
+# Basic window structure begin (THIS ASSUMES THAT HEIGHT CORRESPONDS TO THE Z-AXIS!!!)
 function gw_pointed_arch(pL, pR, excess, offset, nrml)
     mR = line_2pt(pR, pL, excess)
     mL = line_2pt(pL, pR, excess)
@@ -137,7 +171,6 @@ function gw_pointed_arch(pL, pR, excess, offset, nrml)
     return [left_circle_segment, right_circle_segment, rad]
 end
 
-# IMPORTANT - THIS ASSUMES THAT HEIGHT CORRESPONDS TO THE Z-AXIS!!!
 function gw_polygon_2arcs_height(arcL, arcR, hb, nrml, kseg)
     bR = arcR[1]
     bL = arcL[3]
@@ -149,12 +182,13 @@ function gw_polygon_2arcs_height(arcL, arcR, hb, nrml, kseg)
     push!(polygon, circle_seg(arcR, nrml, kseg, 1)[1:end-1]...)
     push!(polygon, circle_seg(arcL, nrml, kseg, 1)...)
     push!(polygon, bL)
+    push!(polygon, bR)
     
     return polygon
 end
 
 arcs = gw_pointed_arch(xyz(-3,0,0), xyz(3,0,0), 1, 0, vxyz(0,-1,0))
-polygon = gw_polygon_2arcs_height(arcs[1], arcs[2], -6, vxyz(0,-1,0), 0)
+polygon = gw_polygon_2arcs_height(arcs[1], arcs[2], -6, vxyz(0,-1,0), 2)
 
 function gw_compute_arcs_rosette(pL, pR, nrml, excess, bdOuter, arcDown, bdInner)
     arch = gw_pointed_arch(pL, pR, excess, bdOuter, nrml)
@@ -163,7 +197,7 @@ function gw_compute_arcs_rosette(pL, pR, nrml, excess, bdOuter, arcDown, bdInner
     arcL = pop!(arch)
 
     pLL = arcL[3] + vxyz(0, 0, -1) * arcDown
-    pRR = arcR[1] + vyz(0, 0, -1) * arcDown
+    pRR = arcR[1] + vxyz(0, 0, -1) * arcDown
     pM = midpoint_2pt(pLL, pRR)
     dpM = setlength_vec(pRR - pLL, bdInner * 0.5)
 
@@ -181,6 +215,10 @@ function gw_compute_arcs_rosette(pL, pR, nrml, excess, bdOuter, arcDown, bdInner
     rosetteRad = distance(rosetteMid, arcLR[2]) - radL - bdInner
 
     return [arcLL, arcLR, arcRL, arcRR, rosetteMid, rosetteRad]
+end
+
+function gw_compute_fillets()
+
 end
 
 function gw_gothic_window(edgeWall, edgeBack, pBaseL, pBaseR, windowdict)
@@ -203,9 +241,12 @@ function gw_gothic_window(edgeWall, edgeBack, pBaseL, pBaseR, windowdict)
     arcLR = pop!(sub_arcs_and_rosette)
     arcLL = pop!(sub_arcs_and_rosette)
 
+    line(main_arch)
+    circle(rosetteMid, rosetteRad)
     # COMPUTE AND DECORATE THE FOUR FILLETS
 
     # DECORATE THE ROSETTE
 
     # DECORATE THE TWO SUB-ARCHES
 end
+# Basic window structure end
