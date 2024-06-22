@@ -119,7 +119,39 @@ function intersect_line_ellipse(p0, p1, m0, m1, r)
 
     return [q0, q1, t0, t1]
 end
+
+function circle(center, nrml, rad, n_points)
+    cx = center + vx(rad) - center
+    cy = center + vy(rad) - center
+    m = loc_from_o_vx_vy(center, cx, cy)
+    angle_increment = 2 * pi / n_points
+    current_angle = 0
+
+    circle = [center + cx]
+
+    while n_points > 1
+        current_angle += angle_increment
+        push!(circle, m + vpol(rad, current_angle, m.cs))
+        n_points -= 1
+    end
+
+    return circle
+end
 # Utility Functions #
+
+# Style Functions #
+function style_main_arch(poly, bdOuter, wallSetback)
+    polygon(poly)
+end
+
+function style_rosette(poly, mid, rad)
+    polygon(poly)
+end
+
+function style_sub_arch(poly, arcL, bh)
+    polygon(poly)
+end
+# Style Functions #
 
 # Structure Functions #
 struct gothic_window
@@ -158,31 +190,72 @@ function gw_polygon_2arcs_height(arcL, arcR, hb, nrml, kseg)
     return polygon
 end
 
-function gw_compute_arcs_rosette(pL, pR, nrml, window_values)
-    sub_arch = gw_pointed_arch(pL, pR, window_values.excess, window_values.bdOuter, nrml)
+function gw_compute_arcs_rosette(pL, pR, nrml, windowdict)
+    sub_arch = gw_pointed_arch(pL, pR, windowdict.excess, windowdict.bdOuter, nrml)
     arcL = sub_arch[1]
     arcR = sub_arch[2]
     rad = sub_arch[3]
 
-    pLL = arcL[3] + vy(-1) * window_values.arcDown
-    pRR = arcR[1] + vy(-1) * window_values.arcDown
+    pLL = arcL[3] + vy(-1) * windowdict.arcDown
+    pRR = arcR[1] + vy(-1) * windowdict.arcDown
     pM = midpoint_2pt(pLL, pRR)
-    dpM = setlength_vec(pRR - pLL, window_values.bdInner * 0.5)
+    dpM = setlength_vec(pRR - pLL, windowdict.bdInner * 0.5)
 
-    sub_archL = gw_pointed_arch(pLL, pM - dpM, window_values.excess, 0.0, nrml)
+    sub_archL = gw_pointed_arch(pLL, pM - dpM, windowdict.excess, 0.0, nrml)
     arcLL = sub_archL[1]
     arcLR = sub_archL[2]
     radL = sub_archL[3]
 
-    sub_archR = gw_pointed_arch(pM + dpM, pRR, window_values.excess, 0.0, nrml)
+    sub_archR = gw_pointed_arch(pM + dpM, pRR, windowdict.excess, 0.0, nrml)
     arcRL = sub_archR[1]
     arcRR = sub_archR[2]
     radR = sub_archR[3]
 
-    rosetteMid = intersect_line_ellipse(pM + vy(1), pM - vy(1), arcLR[2], arcR[2], rad + radL + window_values.bdInner)[1]
-    rosetteRad = distance(rosetteMid, arcLR[2]) - radL - window_values.bdInner
+    rosetteMid = intersect_line_ellipse(pM + vy(1), pM - vy(1), arcLR[2], arcR[2], rad + radL + windowdict.bdInner)[1]
+    rosetteRad = distance(rosetteMid, arcLR[2]) - radL - windowdict.bdInner
 
     return [arcLL, arcLR, arcRL, arcRR, rosetteMid, rosetteRad]
+end
+
+function gw_compute_fillets(arcLL, arcLR, arcRL, arcRR, rosetteMid, rosetteRad, pL, pR, nrml)
+end
+
+function gw_gothic_window(windowdict, pBaseL, pBaseR, nrml)
+
+    # DECORATE MAIN ARCH
+    arcs = gw_pointed_arch(pBaseL, pBaseR, windowdict.excess, 0.0, nrml)
+    arcL = arcs[1]
+    arcR = arcs[2]
+    main_arch = gw_polygon_2arcs_height(arcL, arcR, windowdict.heightBott, nrml, windowdict.kseg)
+    style_main_arch(main_arch, windowdict.bdOuter, windowdict.wallSetback)
+
+    # COMPUTE SUB-ARCS AND ROSETTE
+    window_setback = nrml * -windowdict.wallSetback
+    pL = pBaseL + window_setback
+    pR = pBaseR + window_setback
+    arcs_and_rosette = gw_compute_arcs_rosette(pL, pR, nrml, windowdict)
+    arcLL = arcs_and_rosette[1]
+    arcLR = arcs_and_rosette[2]
+    arcRL = arcs_and_rosette[3]
+    arcRR = arcs_and_rosette[4]
+    rosetteMid = arcs_and_rosette[5]
+    rosetteRad = arcs_and_rosette[6]
+
+    # COMPUTE AND DECORATE THE FOUR FILLETS
+
+
+    # DECORATE THE ROSETTE
+    rosette_circle = circle(rosetteMid, nrml, rosetteRad, windowdict.kseg * 4)
+    style_rosette(rosette_circle, rosetteMid, rosetteRad)
+
+    # DECORATE THE TWO SUB-ARCHES
+    heightInnerArc = windowdict.heightBott - windowdict.bdOuter
+
+    archR = gw_polygon_2arcs_height(arcRL, arcRR, heightInnerArc, nrml, windowdict.kseg)
+    style_sub_arch(archR, arcRL, nothing)
+
+    archL = gw_polygon_2arcs_height(arcLL, arcLR, heightInnerArc, nrml, windowdict.kseg)
+    style_sub_arch(archL, arcLL, nothing)
 end
 # Structure Functions #
 
@@ -191,10 +264,5 @@ gw = gothic_window(1.25, 2.0, 0.4, 0.5, 0.1, 10, 6, nothing)
 nrml = vz(1)
 pL = xy(-5, 0)
 pR = xy(5, 0)
-offset = 0
-main_arch = gw_pointed_arch(pL, pR, gw.excess, offset, nrml)
-arcL = main_arch[1]
-arcR = main_arch[2]
-main_window = gw_polygon_2arcs_height(arcL, arcR, gw.heightBott, nrml, gw.kseg)
-line(main_window)
+gw_gothic_window(gw, pL, pR, nrml)
 # Modeling Test #
