@@ -97,15 +97,13 @@ function solve_quadratic(a, b, c)
     end
 end
 
-function intersect_line_ellipse(p0, p1, m0, m1, r)
-    d = p1 - p0
-    
-    a = d.x^2 + d.y^2 + d.z^2
-    b = 2 * (d.x * (p0.x - m0.x) + d.y * (p0.y - m0.y) + d.z * (p0.z - m0.z) + d.x * (p0.x - m1.x) + d.y * (p0.y - m1.y) + d.z * (p0.z - m1.z))
-    c = (p0.x - m0.x)^2 + (p0.y - m0.y)^2 + (p0.z - m0.z)^2 + (p0.x - m1.x)^2 + (p0.y - m1.y)^2 + (p0.z - m1.z)^2 - r^2
+function intersect_line_ellipse(p0, v, m, r)
+    a = norm(v)^2
+    b = 2 * dot((p0 - m), v)
+    c = norm(p0 - m)^2 - r^2
 
     t_values = solve_quadratic(a, b, c)
-
+    
     if length(t_values) == 0
         return nothing
     end
@@ -114,8 +112,8 @@ function intersect_line_ellipse(p0, p1, m0, m1, r)
     t0 = t_values[1]
     t1 = t_values[2]
 
-    q0 = p0 + d * t0
-    q1 = p1 + d * t1
+    q0 = p0 + v * t0
+    q1 = p0 + v * t1
 
     return [q0, q1, t0, t1]
 end
@@ -211,17 +209,39 @@ function gw_compute_arcs_rosette(pL, pR, nrml, windowdict)
     arcRR = sub_archR[2]
     radR = sub_archR[3]
 
-    rosetteMid = intersect_line_ellipse(pM + vy(1), pM - vy(1), arcLR[2], arcR[2], rad + radL + windowdict.bdInner)[1]
+    ellipse_center = midpoint_2pt(arcLR[2], arcR[2])
+    ellipse_rad = (rad + radL) / 2
+    rosetteMid = intersect_line_ellipse(pM, vy(1), ellipse_center, ellipse_rad)[2]
     rosetteRad = distance(rosetteMid, arcLR[2]) - radL - windowdict.bdInner
 
     return [arcLL, arcLR, arcRL, arcRR, rosetteMid, rosetteRad]
 end
 
-function gw_compute_fillets(arcLL, arcLR, arcRL, arcRR, rosetteMid, rosetteRad, pL, pR, nrml)
+function gw_compute_fillets(arcLL, arcLR, arcRL, arcRR, rosetteMid, rosetteRad, pL, pR, nrml, windowdict)
+    # TODO - Intersections
+    # 1st - convert main arch to main arch - bdOuter //DONE
+    # 2nd - convert sub arches to sub arches + bdOuter and arches + 0.5 * bdInner
+    # 3rd - convert rosette to rosette + bdInner
+    # Set of intersection points:
+    # (rosette, arcL) - miny, maxy
+    # (rosette, arcR) - miny, maxy
+    # (arcL, arcR) - maxy
+    # (arcL, arcLL) - maxy
+    # (arcR, arcRR) - maxy
+    # (arcLR, arcRL) - maxy
+    # (arcLL, rosette) - miny
+    # (arcRR, rosette) - miny
+    # (arcLR, rosette) - miny
+    # (arcRL, rosette) - miny
+    arcs_offset = (distance(pL, pR) - windowdict.bdOuter) / distance(pL, pR)
+    arcs = gw_pointed_arch(pL, pR, windowdict.excess, arcs_offset, nrml)
+    arcL = arcs[1]
+    arcR = arcs[2]
+
+
 end
 
 function gw_gothic_window(windowdict, pBaseL, pBaseR, nrml)
-
     # DECORATE MAIN ARCH
     arcs = gw_pointed_arch(pBaseL, pBaseR, windowdict.excess, 0.0, nrml)
     arcL = arcs[1]
@@ -242,7 +262,7 @@ function gw_gothic_window(windowdict, pBaseL, pBaseR, nrml)
     rosetteRad = arcs_and_rosette[6]
 
     # COMPUTE AND DECORATE THE FOUR FILLETS
-
+    fillets = gw_compute_fillets(arcLL, arcLR, arcRL, arcRR, rosetteMid, rosetteRad, pL, pR, nrml, windowdict)
 
     # DECORATE THE ROSETTE
     rosette_circle = circle(rosetteMid, nrml, rosetteRad, windowdict.kseg * 4)
