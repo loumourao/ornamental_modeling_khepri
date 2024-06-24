@@ -142,6 +142,10 @@ function style_main_arch(poly, bdOuter, wallSetback)
     polygon(poly)
 end
 
+function style_fillet(poly)
+    polygon(poly)
+end
+
 function style_rosette(poly, mid, rad)
     polygon(poly)
 end
@@ -218,27 +222,69 @@ function gw_compute_arcs_rosette(pL, pR, nrml, windowdict)
 end
 
 function gw_compute_fillets(arcLL, arcLR, arcRL, arcRR, rosetteMid, rosetteRad, pL, pR, nrml, windowdict)
-    # TODO - Intersections
-    # 1st - convert main arch to main arch - bdOuter //DONE
-    # 2nd - convert sub arches to sub arches + bdOuter and arches + 0.5 * bdInner
-    # 3rd - convert rosette to rosette + bdInner
-    # Set of intersection points:
-    # (rosette, arcL) - miny, maxy
-    # (rosette, arcR) - miny, maxy
-    # (arcL, arcR) - maxy
-    # (arcL, arcLL) - maxy
-    # (arcR, arcRR) - maxy
-    # (arcLR, arcRL) - maxy
-    # (arcLL, rosette) - miny
-    # (arcRR, rosette) - miny
-    # (arcLR, rosette) - miny
-    # (arcRL, rosette) - miny
-    arcs_offset = (distance(pL, pR) - windowdict.bdOuter) / distance(pL, pR)
-    arcs = gw_pointed_arch(pL, pR, windowdict.excess, arcs_offset, nrml)
+    arcs = gw_pointed_arch(pL, pR, windowdict.excess, windowdict.bdOuter, nrml)
     arcL = arcs[1]
     arcR = arcs[2]
+    
+    circleL_mid = arcL[2]
+    circleR_mid = arcR[2]
+    circleLL_mid = arcLL[2]
+    circleLR_mid = arcLR[2]
+    circleRL_mid = arcRL[2]
+    circleRR_mid = arcRR[2]
 
+    circleL_rad = distance(arcL[1], circleL_mid)
+    circleR_rad = distance(arcR[1], circleR_mid)
+    circleLL_rad = distance(arcLL[1], circleLL_mid) + windowdict.bdOuter
+    circleLR_rad = distance(arcLR[1], circleLR_mid) + windowdict.bdInner
+    circleRL_rad = distance(arcRL[1], circleRL_mid) + windowdict.bdInner
+    circleRR_rad = distance(arcRR[1], circleRR_mid) + windowdict.bdOuter
 
+    rosetteRad += windowdict.bdInner
+    
+    ros_arcL = intersect_circles(rosetteMid, rosetteRad, circleL_mid, circleL_rad, nrml)
+    ros_arcR = intersect_circles(rosetteMid, rosetteRad, circleR_mid, circleR_rad, nrml)
+    arcL_arcR = intersect_circles(circleL_mid, circleL_rad, circleR_mid, circleR_rad, nrml)
+    arcL_arcLL = intersect_circles(circleL_mid, circleL_rad, circleLL_mid, circleLL_rad, nrml)
+    arcR_arcRR = intersect_circles(circleR_mid, circleR_rad, circleRR_mid, circleRR_rad, nrml)
+    arcLR_arcRL = intersect_circles(circleLR_mid, circleLR_rad, circleRL_mid, circleRL_rad, nrml)
+    arcLL_ros = intersect_circles(circleLL_mid, circleLL_rad, rosetteMid, rosetteRad, nrml)
+    arcRR_ros = intersect_circles(circleRR_mid, circleRR_rad, rosetteMid, rosetteRad, nrml)
+    arcLR_ros = intersect_circles(circleLR_mid, circleLR_rad, rosetteMid, rosetteRad, nrml)
+    arcRL_ros = intersect_circles(circleRL_mid, circleRL_rad, rosetteMid, rosetteRad, nrml)
+
+    right_fillet_points = [arcR_arcRR[2], ros_arcR[2], arcRR_ros[1]]
+    upper_fillet_points = [ros_arcR[1], arcL_arcR[1], ros_arcL[2]]
+    left_fillet_points = [arcLL_ros[2], ros_arcL[1], arcL_arcLL[1]]
+    lower_fillet_points = [arcRL_ros[2], arcLR_ros[1], arcLR_arcRL[2]]
+
+    right_fillet = [[right_fillet_points[1], circleR_mid, right_fillet_points[2]], 
+                    [right_fillet_points[2], rosetteMid, right_fillet_points[3]], 
+                    [right_fillet_points[3], circleRR_mid, right_fillet_points[1]]]
+
+    upper_fillet = [[upper_fillet_points[1], circleR_mid, upper_fillet_points[2]],
+                    [upper_fillet_points[2], circleL_mid, upper_fillet_points[3]],
+                    [upper_fillet_points[3], rosetteMid, upper_fillet_points[1]]]
+
+    left_fillet = [[left_fillet_points[1], rosetteMid, left_fillet_points[2]],
+                   [left_fillet_points[2], circleL_mid, left_fillet_points[3]],
+                   [left_fillet_points[3], circleLL_mid, left_fillet_points[1]]]
+
+    lower_fillet = [[lower_fillet_points[1], rosetteMid, lower_fillet_points[2]],
+                    [lower_fillet_points[2], circleLR_mid, lower_fillet_points[3]], 
+                    [lower_fillet_points[3], circleRR_mid, lower_fillet_points[1]]]
+
+    return [right_fillet, upper_fillet, left_fillet, lower_fillet]
+end
+
+function gw_polygon_fillets(right_fillet, upper_fillet, left_fillet, lower_fillet, nrml, windowdict)
+    print(upper_fillet)
+    new_right_fillet = vcat([circle_seg(fillet, nrml, windowdict.kseg, 1) for fillet in right_fillet]...)
+    new_upper_fillet = vcat([circle_seg(fillet, nrml, windowdict.kseg, 1) for fillet in upper_fillet]...)
+    new_left_fillet = vcat([circle_seg(fillet, nrml, windowdict.kseg, 1) for fillet in left_fillet]...)
+    new_lower_fillet = vcat([circle_seg(fillet, nrml, windowdict.kseg, 1) for fillet in lower_fillet]...)
+
+    return [new_right_fillet, new_upper_fillet, new_left_fillet, new_lower_fillet]
 end
 
 function gw_gothic_window(windowdict, pBaseL, pBaseR, nrml)
@@ -263,6 +309,11 @@ function gw_gothic_window(windowdict, pBaseL, pBaseR, nrml)
 
     # COMPUTE AND DECORATE THE FOUR FILLETS
     fillets = gw_compute_fillets(arcLL, arcLR, arcRL, arcRR, rosetteMid, rosetteRad, pL, pR, nrml, windowdict)
+    polygon_fillets = gw_polygon_fillets(fillets..., nrml, windowdict)
+
+    for fillet in polygon_fillets
+        style_fillet(fillet)
+    end
 
     # DECORATE THE ROSETTE
     rosette_circle = circle(rosetteMid, nrml, rosetteRad, windowdict.kseg * 4)
