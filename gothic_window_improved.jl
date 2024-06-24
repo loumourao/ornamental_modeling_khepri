@@ -272,7 +272,7 @@ function gw_compute_fillets(arcLL, arcLR, arcRL, arcRR, rosetteMid, rosetteRad, 
 
     lower_fillet = [[lower_fillet_points[1], rosetteMid, lower_fillet_points[2]],
                     [lower_fillet_points[2], circleLR_mid, lower_fillet_points[3]], 
-                    [lower_fillet_points[3], circleRR_mid, lower_fillet_points[1]]]
+                    [lower_fillet_points[3], circleRL_mid, lower_fillet_points[1]]]
 
     return [right_fillet, upper_fillet, left_fillet, lower_fillet]
 end
