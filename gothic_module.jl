@@ -28,7 +28,12 @@ function arc(center, starting_point, ending_point)
     ccw_starting_angle = K.atan(ca.y, ca.x)
     ccw_ending_angle = K.atan(cb.y, cb.x)
 
-    amplitude = ccw_starting_angle < ccw_ending_angle ? ccw_ending_angle - ccw_starting_angle : 2*pi - K.angle_between(ca, cb)
+    if ccw_ending_angle >= ccw_starting_angle
+        amplitude = ccw_ending_angle - ccw_starting_angle
+    else
+        amplitude = 2π - (ccw_starting_angle - ccw_ending_angle)
+    end
+
     radius = K.norm(ca)
 
     return K.arc(center, radius, ccw_starting_angle, amplitude)
@@ -59,6 +64,67 @@ end
 #end
 # == Predicate Functions for Exception Handling == #
 
+# == Ornamentation Functions == #
+
+# == Rosette == #
+function rosette_rounded_foils(center, radius, n_foils, orientation)
+    # Check if n_foils >= 1, otherwise raise an error
+    Δα = 2π / n_foils
+    foil_radius = (radius * sin(Δα/2)) / (1 + sin(Δα/2))
+    center_to_foil_center_length = radius - foil_radius
+
+    foil_center = center + vpol(center_to_foil_center_length, orientation)
+    starting_foil_point = center + vpol(center_to_foil_center_length * cos(Δα/2), orientation - (Δα/2))
+    ending_foil_point = center + vpol(center_to_foil_center_length * cos(Δα/2), orientation + (Δα/2))
+
+    current_rotation_angle = 0
+
+    while n_foils > 0
+        rotate(arc(foil_center, starting_foil_point, ending_foil_point), current_rotation_angle, center)
+
+        current_rotation_angle += Δα
+        n_foils -= 1
+    end
+end
+
+function rosette_pointed_foils(center, radius, n_foils, displacement_ratio, orientation)
+    # Check if n_foils >= 1 and if displacement_ratio > 1, otherwise raise an error
+    Δα = 2π / n_foils
+    rounded_foil_radius = (radius * sin(Δα/2)) / (1 + sin(Δα/2))
+    center_to_foil_center_length = radius - rounded_foil_radius
+
+    rounded_foil_center = center + vpol(center_to_foil_center_length, orientation)
+    starting_foil_point = center + vpol(center_to_foil_center_length * cos(Δα/2), orientation - (Δα/2))
+    ending_foil_point = center + vpol(center_to_foil_center_length * cos(Δα/2), orientation + (Δα/2))
+
+    right_arc_center_displacement_vector = rounded_foil_center - starting_foil_point
+    left_arc_center_displacement_vector = rounded_foil_center - ending_foil_point
+    displacement_vectors_magnitude = norm(right_arc_center_displacement_vector) * displacement_ratio
+
+    right_arc_center = displace_point_by_vector(starting_foil_point, right_arc_center_displacement_vector, displacement_vectors_magnitude)
+    left_arc_center = displace_point_by_vector(ending_foil_point, left_arc_center_displacement_vector, displacement_vectors_magnitude)
+
+    pointed_foil_radius = distance(right_arc_center, starting_foil_point)
+    B = distance(right_arc_center, left_arc_center) / 2
+    Z = midpoint(right_arc_center, left_arc_center)
+
+    rounded_foil_center_to_arc_intersection_vector = Z - rounded_foil_center
+    rounded_foil_center_to_arc_intersection_vector_magnitude = sqrt(pointed_foil_radius^2 - B^2)
+    arc_intersection = displace_point_by_vector(Z, rounded_foil_center_to_arc_intersection_vector, rounded_foil_center_to_arc_intersection_vector_magnitude)
+
+    current_rotation_angle = 0
+
+    while n_foils > 0
+        rotate(arc(right_arc_center, starting_foil_point, arc_intersection), current_rotation_angle, center) 
+        rotate(arc(left_arc_center, arc_intersection, ending_foil_point), current_rotation_angle, center)
+
+        n_foils -= 1
+        current_rotation_angle += Δα
+    end
+end
+# == Rosette == #
+
+# == Ornamentation Functions == #
 # == Arch Tops == #
 function lancet_arch_top(left_point, right_point, excess)
     # Intersection should be performed by CGAL
@@ -73,7 +139,7 @@ function lancet_arch_top(left_point, right_point, excess)
 
     lancet_arch_midpoint = midpoint(left_point, right_point)
     excess_displacement_vector = right_point - left_point
-    arcs_radius = K.distance(left_point, right_point) * excess
+    arcs_radius = K.norm(excess_displacement_vector) * excess
 
     left_arc_center = displace_point_by_vector(right_point, excess_displacement_vector, -arcs_radius)
     right_arc_center = displace_point_by_vector(left_point, excess_displacement_vector, arcs_radius)
@@ -114,9 +180,10 @@ function arch(bottom_left_corner, upper_right_corner, excess, outer_offset, inne
     polygon = K.line(main_arch[3:end])
 
     # 3D profile sweeps
-    sweep(arcs[1], circle(u0(), 0.4))
-    sweep(arcs[2], circle(u0(), 0.4))
-    sweep(polygon, circle(u0(), 0.4))
+    #profile = polygon()
+    #sweep(arcs[1], profile)
+    #sweep(arcs[2], profile)
+    #sweep(polygon, circle(xy(0.2, 0), 0.2))
     
     if recursion_level > 0
         offset_bottom_left_corner = bottom_left_corner + K.vxy(outer_offset, outer_offset)
