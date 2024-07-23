@@ -38,6 +38,41 @@ function arc(center, starting_point, ending_point)
 
     return K.arc(center, radius, ccw_starting_angle, amplitude)
 end
+
+# The functions below might very well (and should be) removed or, at least, replaced by better suited alternatives
+function solve_quadratic(a, b, c)
+    discriminant = b^2 - 4 * a * c
+    
+    if discriminant < 0
+        return nothing
+    elseif discriminant == 0
+        return [-b / (2 * a)]
+    else
+        sqrt_discriminant = sqrt(discriminant)
+        return [(-b - sqrt_discriminant) / (2 * a), (-b + sqrt_discriminant) / (2 * a)]
+    end
+end
+
+function intersect_line_ellipse(p0, v, m, r)
+    a = K.norm(v)^2
+    b = 2 * K.dot((p0 - m), v)
+    c = K.norm(p0 - m)^2 - r^2
+
+    t_values = solve_quadratic(a, b, c)
+    
+    if length(t_values) == 0
+        return nothing
+    end
+
+    t_values = sort(t_values)
+    t0 = t_values[1]
+    t1 = t_values[2]
+
+    q0 = p0 + v * t0
+    q1 = p0 + v * t1
+
+    return [q0, q1, t0, t1]
+end
 # == Utility Functions == #
 
 # Check w/ Prof. what he thinks about this - reserve for final implementation stage tweaks only
@@ -73,14 +108,16 @@ function rosette_rounded_foils(center, radius, n_foils, orientation)
     foil_radius = (radius * sin(Δα/2)) / (1 + sin(Δα/2))
     center_to_foil_center_length = radius - foil_radius
 
-    foil_center = center + vpol(center_to_foil_center_length, orientation)
-    starting_foil_point = center + vpol(center_to_foil_center_length * cos(Δα/2), orientation - (Δα/2))
-    ending_foil_point = center + vpol(center_to_foil_center_length * cos(Δα/2), orientation + (Δα/2))
+    foil_center = center + K.vpol(center_to_foil_center_length, orientation)
+    starting_foil_point = center + K.vpol(center_to_foil_center_length * cos(Δα/2), orientation - (Δα/2))
+    ending_foil_point = center + K.vpol(center_to_foil_center_length * cos(Δα/2), orientation + (Δα/2))
 
     current_rotation_angle = 0
+    
+    circle(center, radius)
 
     while n_foils > 0
-        rotate(arc(foil_center, starting_foil_point, ending_foil_point), current_rotation_angle, center)
+        K.rotate(arc(foil_center, starting_foil_point, ending_foil_point), current_rotation_angle, center)
 
         current_rotation_angle += Δα
         n_foils -= 1
@@ -93,30 +130,33 @@ function rosette_pointed_foils(center, radius, n_foils, displacement_ratio, orie
     rounded_foil_radius = (radius * sin(Δα/2)) / (1 + sin(Δα/2))
     center_to_foil_center_length = radius - rounded_foil_radius
 
-    rounded_foil_center = center + vpol(center_to_foil_center_length, orientation)
-    starting_foil_point = center + vpol(center_to_foil_center_length * cos(Δα/2), orientation - (Δα/2))
-    ending_foil_point = center + vpol(center_to_foil_center_length * cos(Δα/2), orientation + (Δα/2))
+    rounded_foil_center = center + K.vpol(center_to_foil_center_length, orientation)
+    starting_foil_point = center + K.vpol(center_to_foil_center_length * cos(Δα/2), orientation - (Δα/2))
+    ending_foil_point = center + K.vpol(center_to_foil_center_length * cos(Δα/2), orientation + (Δα/2))
 
     right_arc_center_displacement_vector = rounded_foil_center - starting_foil_point
     left_arc_center_displacement_vector = rounded_foil_center - ending_foil_point
-    displacement_vectors_magnitude = norm(right_arc_center_displacement_vector) * displacement_ratio
+    displacement_vectors_magnitude = K.norm(right_arc_center_displacement_vector) * displacement_ratio
 
     right_arc_center = displace_point_by_vector(starting_foil_point, right_arc_center_displacement_vector, displacement_vectors_magnitude)
     left_arc_center = displace_point_by_vector(ending_foil_point, left_arc_center_displacement_vector, displacement_vectors_magnitude)
 
-    pointed_foil_radius = distance(right_arc_center, starting_foil_point)
-    B = distance(right_arc_center, left_arc_center) / 2
+    pointed_foil_radius = K.distance(right_arc_center, starting_foil_point)
+    B = K.distance(right_arc_center, left_arc_center) / 2
     Z = midpoint(right_arc_center, left_arc_center)
 
     rounded_foil_center_to_arc_intersection_vector = Z - rounded_foil_center
     rounded_foil_center_to_arc_intersection_vector_magnitude = sqrt(pointed_foil_radius^2 - B^2)
     arc_intersection = displace_point_by_vector(Z, rounded_foil_center_to_arc_intersection_vector, rounded_foil_center_to_arc_intersection_vector_magnitude)
-
+    
+    scaling_factor = radius / K.distance(center, arc_intersection)
     current_rotation_angle = 0
+    
+    circle(center, radius)
 
     while n_foils > 0
-        rotate(arc(right_arc_center, starting_foil_point, arc_intersection), current_rotation_angle, center) 
-        rotate(arc(left_arc_center, arc_intersection, ending_foil_point), current_rotation_angle, center)
+        K.scale(K.rotate(arc(right_arc_center, starting_foil_point, arc_intersection), current_rotation_angle, center), scaling_factor)
+        K.scale(K.rotate(arc(left_arc_center, arc_intersection, ending_foil_point), current_rotation_angle, center), scaling_factor)
 
         n_foils -= 1
         current_rotation_angle += Δα
@@ -153,7 +193,7 @@ function lancet_arch_top(left_point, right_point, excess)
     right_arc = arc(left_arc_center, right_point, arc_intersection)
     left_arc = arc(right_arc_center, arc_intersection, left_point)
 
-    return [right_arc, left_arc]
+    return [right_arc, left_arc, left_arc_center, arcs_radius]
 end
 
 # Or just the trefoil for simplification purposes
@@ -200,19 +240,23 @@ function arch(bottom_left_corner, upper_right_corner, excess, outer_offset, inne
 
         left_sub_arch = arch(offset_bottom_left_corner, left_sub_arch_upper_right_corner, sub_arches_excess, outer_offset, inner_offset, recursion_level - 1, vertical_distance_to_sub_arches)
         right_sub_arch = arch(right_sub_arch_bottom_left_corner, offset_upper_right_corner, sub_arches_excess, outer_offset, inner_offset, recursion_level - 1, vertical_distance_to_sub_arches)
+
+        # The code below begs for changes that conform to those mentioned in the corresponding labeled utility functions
+        ellipse_center = midpoint(left_sub_arch[1], arcs[3])
+        ellipse_rad = (arcs[4] + left_sub_arch[2]) / 2
+        rosetteMid = intersect_line_ellipse(midpoint(K.xy(offset_bottom_left_corner.x, offset_upper_right_corner.y), offset_upper_right_corner), vy(1), ellipse_center, ellipse_rad)[2]
+        rosetteRad = distance(rosetteMid, left_sub_arch[1]) - left_sub_arch[2] - inner_offset
+        rosette_rounded_foils(rosetteMid, rosetteRad, 6, 0)
     end
+
+
+    return [arcs[3], arcs[4]]
 end
 # == Main Arch == #
 
-arch(K.xy(-4, -6), K.xy(4, 6), 1, 0.4, 0.4, 1, 3)
-
-# For sub-arches, the circle midpoints of the original arch are kept the same
-# the only thing that changes is the offset of the upper corners
-# TODO: Try to automatically calculate the new excess provided this piece of information
+arch(K.xy(-10, -16), K.xy(10, 16), 1, 0.75, 0.75, 2, 3)
 
 # Rosette decorations:
-# Develop an n-foil generative function
-# Develop sub-types for n-foil (pointed and rounded n-foils)
 # Instead of solely developing standing and laying orientations for the foils, set these as two default is_arc_construction_possible
 # and develop a new, general, construction that aims at allowing for different rotational configurations based upon their default positions
 # Another thing that GML doesn't resort to as a simplification measure is polar coordinates! Something we can make use of to simplify these constructions
