@@ -4,53 +4,34 @@ const K = KhepriAutoCAD
 delete_all_shapes()
 
 # == UTILITY FUNCTIONS == #
+# == MATH == #
+function solve_quadratic(a, b, c)
+    discriminant = b^2 - 4 * a * c
+    
+    if discriminant < 0
+        return nothing
+    elseif discriminant == 0
+        return [-b / (2 * a)]
+    else
+        sqrt_discriminant = sqrt(discriminant)
+        return [(-b - sqrt_discriminant) / (2 * a), (-b + sqrt_discriminant) / (2 * a)]
+    end
+end
+# == MATH == #
+
+# == VECTORS == #
 function displace_point_by_vector(point, vector, magnitude)
     unit_vector = vector / norm(vector)
 
     return point + unit_vector * magnitude
 end
-
-# == ARCS == #
-function arc(center, starting_point, ending_point)
-    ca = starting_point - center
-    cb = ending_point - center
-
-    ccw_starting_angle = atan(ca.y, ca.x)
-    ccw_ending_angle = atan(cb.y, cb.x)
-    radius = norm(ca)
-
-    if ccw_ending_angle >= ccw_starting_angle
-        amplitude = ccw_ending_angle - ccw_starting_angle
-    else
-        amplitude = 2π - (ccw_starting_angle - ccw_ending_angle)
-    end
-
-    return K.arc(center, radius, ccw_starting_angle, amplitude)
-end
-
-function arc_start_point(arc)
-    center = arc_center(arc)
-    radius = arc_radius(arc)
-    start_angle = arc_start_angle(arc)
-
-    return center + vpol(radius, start_angle)
-end
-
-function arc_end_point(arc)
-    center = arc_center(arc)
-    radius = arc_radius(arc)
-    start_angle = arc_start_angle(arc)
-    amplitude = arc_amplitude(arc)
-
-    return center + vpol(radius, start_angle + amplitude)
-end
-# == ARCS == #
+# == VECTORS == #
 
 # == CIRCLES == #
 function intersect_circles(m0, r0, m1, r1)
     d = distance(m0, m1)
     
-    # IMPORTANT: d == 0 prevents the set of interesection points when both circles overlap
+    # d == 0 prevents the set of interesection points when both circles overlap
     if d > r0 + r1 || d < abs(r0 - r1) || d == 0
         return nothing
     end
@@ -91,29 +72,107 @@ function intersect_line_ellipse(p0, v, m, r)
 end
 # == CIRCLES == #
 
+# == ARCS == #
+function arc(center, start_point, end_point)
+    a = start_point - center
+    b = end_point - center
+
+    ccw_start_angle = atan(a.y, a.x)
+    ccw_end_angle = atan(b.y, b.x)
+    radius = norm(a)
+
+    if ccw_end_angle > ccw_start_angle
+        amplitude = ccw_end_angle - ccw_start_angle
+    else
+        amplitude = 2π - ccw_start_angle + ccw_end_angle
+    end
+
+    return K.arc(center, radius, ccw_start_angle, amplitude)
+end
+
+function arc_start_point(arc)
+    center = arc_center(arc)
+    radius = arc_radius(arc)
+    start_angle = arc_start_angle(arc)
+
+    return center + vpol(radius, start_angle)
+end
+
+function arc_end_point(arc)
+    center = arc_center(arc)
+    radius = arc_radius(arc)
+    start_angle = arc_start_angle(arc)
+    amplitude = arc_amplitude(arc)
+
+    return center + vpol(radius, start_angle + amplitude)
+end
+
+function intersect_arcs(arc0, arc1)
+    m0 = arc_center(arc0)
+    r0 = arc_radius(arc0)
+    arc0_start_angle = arc_start_angle(arc0)
+    arc0_amplitude = arc_amplitude(arc0)
+
+    m1 = arc_center(arc1)
+    r1 = arc_radius(arc1)
+    arc1_start_angle = arc_start_angle(arc1)
+    arc1_amplitude = arc_amplitude(arc1)
+
+    circle_intersection_points = intersect_circles(m0, r0, m1, r1)
+
+    if isnothing(circle_intersection_points)
+        return nothing
+    end
+
+    valid_intersection_points = []
+
+    for intersection_point in circle_intersection_points
+        a = intersection_point - m0
+        a_θ = atan(a.y, a.x)
+        a_θ_amplitude = arc0_start_angle > a_θ ? 2π - arc0_start_angle + a_θ : a_θ - arc0_start_angle
+
+        b = intersection_point - m1
+        b_θ = atan(b.y, b.x)
+        b_θ_amplitude = arc1_start_angle > b_θ ? 2π - arc1_start_angle + b_θ : b_θ - arc1_start_angle
+
+        if a_θ_amplitude <= arc0_amplitude && b_θ_amplitude <= arc1_amplitude
+            push!(valid_intersection_points, intersection_point)
+        end
+    end
+
+    if isempty(valid_intersection_points)
+        return nothing
+    end
+
+    return length(valid_intersection_points) > 1 ? valid_intersection_points : valid_intersection_points[1]
+end
+
+function offset_arc(previous_arc, offset_value)
+    center = arc_center(previous_arc)
+    radius = arc_radius(previous_arc)
+    start_point = arc_start_point(previous_arc)
+    end_point = arc_end_point(previous_arc)
+
+    ca = start_point - center
+    cb = end_point - center
+    new_radius = radius - offset_value
+    new_start_point = displace_point_by_vector(center, ca, new_radius)
+    new_end_point = displace_point_by_vector(center, cb, new_radius)
+
+    return arc(center, new_start_point, new_end_point)
+end
+# == ARCS == #
+
 # == ARCHES == #
 function get_offseted_excess(left_point, right_point, previous_excess, offset)
-    displacement_vector = right_point - left_point
-    displacement_vector_magnitude = norm(displacement_vector)
-    left_arc_center = displace_point_by_vector(left_point, displacement_vector, displacement_vector_magnitude * previous_excess)
-    offsetted_left_point_to_left_arc_distance = distance(left_point, left_arc_center) - offset
+    width_vector = right_point - left_point
+    width = norm(width_vector)
+    left_arc_center = displace_point_by_vector(left_point, width_vector, width * previous_excess)
+    offsetted_radius = distance(left_point, left_arc_center) - offset
     
-    return offsetted_left_point_to_left_arc_distance / displacement_vector_magnitude
+    return offsetted_radius / width
 end
 # == ARCHES == #
-
-function solve_quadratic(a, b, c)
-    discriminant = b^2 - 4 * a * c
-    
-    if discriminant < 0
-        return nothing
-    elseif discriminant == 0
-        return [-b / (2 * a)]
-    else
-        sqrt_discriminant = sqrt(discriminant)
-        return [(-b - sqrt_discriminant) / (2 * a), (-b + sqrt_discriminant) / (2 * a)]
-    end
-end
 
 function uniformly_extended_inner_offset(offset_value, center, starting_point, ending_point)
     ca = starting_point - center
@@ -189,11 +248,11 @@ function lancet_arch_top(left_point, right_point, excess)
         arc_intersection_y = sqrt(arcs_radius^2 - distance(left_arc_center, arch_midpoint)^2) + arch_midpoint.y
         arc_intersection = xy(arc_intersection_x, arc_intersection_y)
 
-        arc(right_arc_center, right_point, arc_intersection)
-        arc(left_arc_center, arc_intersection, left_point)
+        right_arc = arc(right_arc_center, right_point, arc_intersection)
+        left_arc = arc(left_arc_center, arc_intersection, left_point)
     end
 
-    return (right_arc_center = right_arc_center, left_arc_center = left_arc_center, arcs_radius = arcs_radius)
+    return (right_arc = right_arc, left_arc = left_arc)
 end
 # == ARCH TOPS == #
 
@@ -214,12 +273,14 @@ end
 function rosette_rounded_foils(center, radius, n_foils, orientation, outer_offset, inner_offset)
     # Check if n_foils >= 1, otherwise raise an error
     Δα = 2π / n_foils
+    
     foil_radius = (radius * sin(Δα/2)) / (1 + sin(Δα/2))
     center_to_foil_center_length = radius - foil_radius
+    center_to_foil_starting_point = center_to_foil_center_length * cos(Δα/2)
 
     foil_center = center + vpol(center_to_foil_center_length, orientation)
-    starting_foil_point = center + vpol(center_to_foil_center_length * cos(Δα/2), orientation - (Δα/2))
-    ending_foil_point = center + vpol(center_to_foil_center_length * cos(Δα/2), orientation + (Δα/2))
+    starting_foil_point = center + vpol(center_to_foil_starting_point, orientation - (Δα/2))
+    ending_foil_point = center + vpol(center_to_foil_starting_point, orientation + (Δα/2))
 
     current_rotation_angle = 0
 
@@ -346,6 +407,33 @@ end
 # == FILLETS == #
 # == ORNAMENTATION FUNCTIONS == #
 
+# Sweep doesn't work for arc_paths (?) - Ask Prof.
+#function three_dimensionalize_main_arch_top(left_arc, right_arc, outer_offset, profile = circle(u0(), outer_offset / 2))
+#    left_arc_center = arc_center(left_arc)
+#    left_arc_radius = arc_radius(left_arc)
+#    left_arc_start_angle = arc_start_angle(left_arc)
+#    left_arc_amplitude = arc_amplitude(left_arc)
+#
+#    right_arc_center = arc_center(right_arc)
+#    right_arc_radius = arc_radius(right_arc)
+#    right_arc_start_angle = arc_start_angle(right_arc)
+#    right_arc_amplitude = arc_amplitude(right_arc)
+#
+#    offset_value = outer_offset / 2
+#    left_arc_path = offset(arc_path(left_arc_center, left_arc_radius, left_arc_start_angle, left_arc_amplitude), offset_value)
+#    right_arc_path = offset(arc_path(right_arc_center, right_arc_radius, right_arc_start_angle, right_arc_amplitude), offset_value)
+#
+#    sweep(left_arc_path, profile)
+#    sweep(right_arc_path, profile)
+#end
+
+function three_dimensionalize_main_arch_top(left_arc, right_arc, outer_offset, profile = circle(u0(), outer_offset / 2))
+    left_arc = offset_arc(left_arc, outer_offset / 2)
+    right_arc = offset_arc(right_arc, outer_offset / 2)
+    sweep(left_arc, profile)
+    sweep(right_arc, profile)
+end
+
 # == MAIN ARCH == #
 function arch(bottom_left_corner, upper_right_corner, excess, 
                 recursion_level, vertical_distance_to_sub_arch, 
@@ -355,13 +443,35 @@ function arch(bottom_left_corner, upper_right_corner, excess,
     bottom_right_corner = xy(upper_right_corner.x, bottom_left_corner.y)
 
     # Arch body
-    line(upper_left_corner, bottom_left_corner, bottom_right_corner, upper_right_corner)
+    arch_body = line(upper_left_corner, bottom_left_corner, bottom_right_corner, upper_right_corner)
 
     # Arch top portion
     arcs = lancet_arch_top(upper_left_corner, upper_right_corner, excess)
-    right_arc_center = arcs.right_arc_center
-    left_arc_center = arcs.left_arc_center
-    arcs_radius = arcs.arcs_radius
+    right_arc_center = arc_center(arcs.right_arc)
+    left_arc_center = arc_center(arcs.left_arc)
+    arcs_radius = arc_radius(arcs.right_arc)
+    arc_intersection = arc_end_point(arcs.right_arc)
+
+    # 3D Arch
+    three_dimensionalize_main_arch_top(arcs.left_arc, arcs.right_arc, outer_offset)
+
+    # 3D Sweeps
+    #right_arc_center_to_upper_right_corner = upper_right_corner - right_arc_center
+    #right_arc_center_to_arc_intersection = arc_intersection - right_arc_center
+    #right_arc_start_angle = atan(right_arc_center_to_upper_right_corner.y, right_arc_center_to_upper_right_corner.x)
+    #right_arc_end_angle = atan(right_arc_center_to_arc_intersection.y, right_arc_center_to_arc_intersection.x) + 0.025
+    #right_arc_sweep_amplitude = right_arc_end_angle - right_arc_start_angle
+#
+    #left_arc_center_to_upper_left_corner = upper_left_corner - left_arc_center
+    #left_arc_center_to_arc_intersection = arc_intersection - left_arc_center
+    #left_arc_start_angle = atan(left_arc_center_to_arc_intersection.y, left_arc_center_to_arc_intersection.x) - 0.025
+    #left_arc_end_angle = atan(left_arc_center_to_upper_left_corner.y, left_arc_center_to_upper_left_corner.x)
+    #left_arc_sweep_amplitude = left_arc_end_angle - left_arc_start_angle
+#
+    #profile = gothic_profle(outer_offset)
+    #sweep(arch_body, profile)
+    #sweep(K.arc(right_arc_center, arcs_radius, right_arc_start_angle, right_arc_sweep_amplitude), profile)
+    #sweep(K.arc(left_arc_center, arcs_radius, left_arc_start_angle, left_arc_sweep_amplitude), profile)
 
     # Sub-Arches
     if recursion_level > 0
@@ -406,7 +516,7 @@ function arch(bottom_left_corner, upper_right_corner, excess,
                                         outer_offset, inner_offset, vertical_axis, vertical_axis_point)
         rosette_center = rosette.rosette_center
         rosette_radius = rosette.rosette_radius
-        rosette_rounded_foils(rosette_center, rosette_radius, 9, π/2, 0.3, 0.3)
+        rosette_rounded_foils(rosette_center, rosette_radius, 9, π/2, rosette_radius * outer_offset_ratio, rosette_radius * inner_offset_ratio)
 
         # Fillets
         circular_rosette_fillets(right_arc_center, left_arc_center, arcs_radius - outer_offset, 
@@ -424,6 +534,3 @@ end
 #end
 
 arch(xy(-10, -16), xy(10, 16), 1, 2, 3, 1, 1)
-
-# Instead of resorting to simple arrays to store information about arcs, circles, polygons (as GML does) we resort to Khepri's objects and types
-# in such a way that allows us to perform type-checking operations as well as to better aid in the understanding of the program on the user's end
