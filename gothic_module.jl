@@ -164,13 +164,18 @@ end
 # == ARCS == #
 
 # == ARCHES == #
-function get_offseted_excess(left_point, right_point, previous_excess, offset)
+function get_offset_excess(left_point, right_point, previous_excess, offset)
     width_vector = right_point - left_point
     width = norm(width_vector)
     left_arc_center = displace_point_by_vector(left_point, width_vector, width * previous_excess)
-    offsetted_radius = distance(left_point, left_arc_center) - offset
     
-    return offsetted_radius / width
+    offset_left_point = left_point + vx(offset)
+    offset_right_point = right_point - vx(offset)
+    offset_width_vector = offset_right_point - offset_left_point
+    offset_width = norm(offset_width_vector)
+    offset_radius = distance(left_point, left_arc_center) - offset
+
+    return offset_radius / offset_width
 end
 # == ARCHES == #
 
@@ -427,17 +432,38 @@ end
 #    sweep(right_arc_path, profile)
 #end
 
-function three_dimensionalize_main_arch_top(left_arc, right_arc, outer_offset, profile = circle(u0(), outer_offset / 2))
+function three_dimensionalize_main_arch_top(left_arc, right_arc, outer_offset, profile = surface_circle(u0(), outer_offset / 2))
     left_arc = offset_arc(left_arc, outer_offset / 2)
     right_arc = offset_arc(right_arc, outer_offset / 2)
+
+    sweep(left_arc, profile)
+    sweep(right_arc, profile)
+end
+
+function three_dimensionalize_main_arch_body(upper_left_corner, bottom_left_corner, bottom_right_corner, upper_right_corner, 
+                                                outer_offset, profile = surface_circle(x(outer_offset / 2), outer_offset / 2))
+    arch_body = line(upper_left_corner, bottom_left_corner, bottom_right_corner, upper_right_corner)
+    sweep(arch_body, profile)
+end
+
+function three_dimensionalize_rosette(rosette_center, rosette_radius, outer_offset, inner_offset, 
+                                        profile = surface_circle(u0(), (outer_offset + inner_offset) / 2))
+    rosette = circle(rosette_center, rosette_radius - outer_offset + ((outer_offset + inner_offset) / 2))
+    sweep(rosette, profile)
+end
+
+function three_dimensionalize_outer_sub_arch_top(left_arc, right_arc, inner_offset, profile = surface_circle(u0(), inner_offset / 2))
+    left_arc = offset_arc(left_arc, inner_offset / 2)
+    right_arc = offset_arc(right_arc, inner_offset / 2)
+
     sweep(left_arc, profile)
     sweep(right_arc, profile)
 end
 
 # == MAIN ARCH == #
-function arch(bottom_left_corner, upper_right_corner, excess, 
-                recursion_level, vertical_distance_to_sub_arch, 
-                    outer_offset, inner_offset)
+function bidimensional_arch_sketch(bottom_left_corner, upper_right_corner, excess, 
+                                    recursion_level, vertical_distance_to_sub_arch, 
+                                        outer_offset, inner_offset)
     # Arch body auxiliary coordinates
     upper_left_corner = xy(bottom_left_corner.x, upper_right_corner.y)
     bottom_right_corner = xy(upper_right_corner.x, bottom_left_corner.y)
@@ -451,27 +477,6 @@ function arch(bottom_left_corner, upper_right_corner, excess,
     left_arc_center = arc_center(arcs.left_arc)
     arcs_radius = arc_radius(arcs.right_arc)
     arc_intersection = arc_end_point(arcs.right_arc)
-
-    # 3D Arch
-    three_dimensionalize_main_arch_top(arcs.left_arc, arcs.right_arc, outer_offset)
-
-    # 3D Sweeps
-    #right_arc_center_to_upper_right_corner = upper_right_corner - right_arc_center
-    #right_arc_center_to_arc_intersection = arc_intersection - right_arc_center
-    #right_arc_start_angle = atan(right_arc_center_to_upper_right_corner.y, right_arc_center_to_upper_right_corner.x)
-    #right_arc_end_angle = atan(right_arc_center_to_arc_intersection.y, right_arc_center_to_arc_intersection.x) + 0.025
-    #right_arc_sweep_amplitude = right_arc_end_angle - right_arc_start_angle
-#
-    #left_arc_center_to_upper_left_corner = upper_left_corner - left_arc_center
-    #left_arc_center_to_arc_intersection = arc_intersection - left_arc_center
-    #left_arc_start_angle = atan(left_arc_center_to_arc_intersection.y, left_arc_center_to_arc_intersection.x) - 0.025
-    #left_arc_end_angle = atan(left_arc_center_to_upper_left_corner.y, left_arc_center_to_upper_left_corner.x)
-    #left_arc_sweep_amplitude = left_arc_end_angle - left_arc_start_angle
-#
-    #profile = gothic_profle(outer_offset)
-    #sweep(arch_body, profile)
-    #sweep(K.arc(right_arc_center, arcs_radius, right_arc_start_angle, right_arc_sweep_amplitude), profile)
-    #sweep(K.arc(left_arc_center, arcs_radius, left_arc_start_angle, left_arc_sweep_amplitude), profile)
 
     # Sub-Arches
     if recursion_level > 0
@@ -497,12 +502,12 @@ function arch(bottom_left_corner, upper_right_corner, excess,
         sub_arch_excess = get_offseted_excess(upper_left_corner, upper_right_corner, excess, outer_offset)
 
         # Sub-arches
-        left_sub_arch = arch(left_sub_arch_bottom_left_corner, left_sub_arch_upper_right_corner, sub_arch_excess, 
-                                recursion_level - 1, vertical_distance_to_sub_arch, 
-                                    sub_arch_outer_offset, sub_arch_inner_offset)
-        right_sub_arch = arch(right_sub_arch_bottom_left_corner, right_sub_arch_upper_right_corner, sub_arch_excess, 
-                                recursion_level - 1, vertical_distance_to_sub_arch, 
-                                    sub_arch_outer_offset, sub_arch_inner_offset)
+        left_sub_arch = bidimensional_arch_sketch(left_sub_arch_bottom_left_corner, left_sub_arch_upper_right_corner, sub_arch_excess, 
+                                                        recursion_level - 1, vertical_distance_to_sub_arch, 
+                                                            sub_arch_outer_offset, sub_arch_inner_offset)
+        right_sub_arch = bidimensional_arch_sketch(right_sub_arch_bottom_left_corner, right_sub_arch_upper_right_corner, sub_arch_excess, 
+                                                        recursion_level - 1, vertical_distance_to_sub_arch, 
+                                                            sub_arch_outer_offset, sub_arch_inner_offset)
     end
 
     if recursion_level > 0
@@ -527,10 +532,111 @@ function arch(bottom_left_corner, upper_right_corner, excess,
 
     return (right_arc_center = right_arc_center, left_arc_center = left_arc_center, arcs_radius = arcs_radius)
 end
+
+function three_dimensional_arch(bottom_left_corner, upper_right_corner, excess, 
+                                    recursion_level, vertical_distance_to_sub_arch, 
+                                        outer_offset, inner_offset)
+    # Arch body auxiliary coordinates
+    upper_left_corner = xy(bottom_left_corner.x, upper_right_corner.y)
+    bottom_right_corner = xy(upper_right_corner.x, bottom_left_corner.y)
+
+    # Arch body
+    arch_body = line(upper_left_corner, bottom_left_corner, bottom_right_corner, upper_right_corner)
+
+    # Arch top portion
+    arcs = lancet_arch_top(upper_left_corner, upper_right_corner, excess)
+    right_arc_center = arc_center(arcs.right_arc)
+    left_arc_center = arc_center(arcs.left_arc)
+    arcs_radius = arc_radius(arcs.right_arc)
+    arc_intersection = arc_end_point(arcs.right_arc)
+
+    # 3D Arch
+    three_dimensionalize_main_arch_top(arcs.left_arc, arcs.right_arc, outer_offset)
+    three_dimensionalize_main_arch_body(upper_left_corner, bottom_left_corner, bottom_right_corner, upper_right_corner, outer_offset)
+
+    # Sub-Arches
+    if recursion_level > 0
+        # Auxiliary calculations
+        arch_width = distance(bottom_left_corner, bottom_right_corner)
+        arch_width_midpoint = intermediate_loc(bottom_left_corner, bottom_right_corner)
+        inner_offset_displacement = inner_offset / 2
+        
+        # Sub-Arches auxiliary coordinates
+        left_sub_arch_bottom_left_corner = bottom_left_corner + vxy(outer_offset, outer_offset)
+        right_sub_arch_upper_right_corner = upper_right_corner - vxy(outer_offset, vertical_distance_to_sub_arch)
+        left_sub_arch_upper_right_corner = xy(arch_width_midpoint.x - inner_offset_displacement, right_sub_arch_upper_right_corner.y)
+        right_sub_arch_bottom_left_corner = xy(arch_width_midpoint.x + inner_offset_displacement, left_sub_arch_bottom_left_corner.y)
+        
+        # Sub-arches offset values
+        sub_arch_width = abs(left_sub_arch_upper_right_corner.x - left_sub_arch_bottom_left_corner.x)
+        outer_offset_ratio = outer_offset / arch_width
+        inner_offset_ratio = inner_offset / arch_width
+        sub_arch_outer_offset = sub_arch_width * outer_offset_ratio
+        sub_arch_inner_offset = sub_arch_width * inner_offset_ratio
+
+        # Sub-arches excess value
+        sub_arch_excess = get_offset_excess(upper_left_corner, upper_right_corner, excess, outer_offset)
+        outer_sub_arch_excess = get_offset_excess(xy(left_sub_arch_bottom_left_corner.x, left_sub_arch_upper_right_corner.y), 
+                                                    left_sub_arch_upper_right_corner, sub_arch_excess, -outer_offset)
+
+        left_outer_sub_arch_top = lancet_arch_top(xy(left_sub_arch_bottom_left_corner.x, left_sub_arch_upper_right_corner.y) - vx(outer_offset), 
+                                                    left_sub_arch_upper_right_corner + vx(outer_offset), outer_sub_arch_excess)
+        left_outer_sub_arch_left_arc = left_outer_sub_arch_top.left_arc
+        left_outer_sub_arch_right_arc = left_outer_sub_arch_top.right_arc
+
+        right_outer_sub_arch_top = lancet_arch_top(xy(right_sub_arch_bottom_left_corner.x, right_sub_arch_upper_right_corner.y) - vx(outer_offset), 
+                                                    right_sub_arch_upper_right_corner + vx(outer_offset), outer_sub_arch_excess)
+        right_outer_sub_arch_left_arc = right_outer_sub_arch_top.left_arc
+        right_outer_sub_arch_right_arc = right_outer_sub_arch_top.right_arc
+        
+        three_dimensionalize_outer_sub_arch_top(left_outer_sub_arch_left_arc, left_outer_sub_arch_right_arc, inner_offset)
+        three_dimensionalize_outer_sub_arch_top(right_outer_sub_arch_left_arc, right_outer_sub_arch_right_arc, inner_offset)
+        
+        # Sub-arches
+        left_sub_arch = three_dimensional_arch(left_sub_arch_bottom_left_corner, left_sub_arch_upper_right_corner, sub_arch_excess, 
+                                                    recursion_level - 1, vertical_distance_to_sub_arch, 
+                                                        sub_arch_outer_offset, sub_arch_inner_offset)
+        right_sub_arch = three_dimensional_arch(right_sub_arch_bottom_left_corner, right_sub_arch_upper_right_corner, sub_arch_excess, 
+                                                    recursion_level - 1, vertical_distance_to_sub_arch, 
+                                                        sub_arch_outer_offset, sub_arch_inner_offset)
+    end
+
+    if recursion_level > 0
+        left_sub_arch_left_arc_center = arc_center(left_sub_arch.left_arc)
+        left_sub_arch_right_arc_center = arc_center(left_sub_arch.right_arc)
+
+        right_sub_arch_left_arc_center = arc_center(right_sub_arch.left_arc)
+        right_sub_arch_right_arc_center = arc_center(right_sub_arch.right_arc)
+        
+        sub_arcs_radius = arc_radius(left_sub_arch.left_arc)
+
+        # Auxiliary parameters for rosette
+        vertical_axis = vy(1)
+        vertical_axis_point = intermediate_loc(bottom_left_corner, upper_right_corner)
+
+        # Rosette
+        rosette = compute_rosette(right_arc_center, arcs_radius, 
+                                    left_sub_arch_right_arc_center, sub_arcs_radius, 
+                                        outer_offset, inner_offset, vertical_axis, vertical_axis_point)
+        rosette_center = rosette.rosette_center
+        rosette_radius = rosette.rosette_radius
+        three_dimensionalize_rosette(rosette_center, rosette_radius, rosette_radius * outer_offset_ratio, inner_offset)
+        rosette_rounded_foils(rosette_center, rosette_radius, 9, π/2, rosette_radius * outer_offset_ratio, rosette_radius * inner_offset_ratio)
+
+        # Fillets
+        circular_rosette_fillets(right_arc_center, left_arc_center, arcs_radius - outer_offset, 
+                            rosette_center, rosette_radius + inner_offset, 
+                                right_sub_arch_right_arc_center, right_sub_arch_left_arc_center,
+                                    left_sub_arch_left_arc_center, left_sub_arch_right_arc_center, sub_arcs_radius + inner_offset)
+    end
+
+    return (left_arc = arcs.left_arc, right_arc = arcs.right_arc)
+end
 # == MAIN ARCH == #
 
 #with(current_cs, cs_from_o_vz(u0(), vx())) do
 #    arch(xy(-10, -16), xy(10, 16), 1, 0.75, 0.75, 1, 3)
 #end
 
-arch(xy(-10, -16), xy(10, 16), 1, 2, 3, 1, 1)
+#bidimensional_arch_sketch(xy(-10, -16), xy(10, 16), 1, 2, 3, 1, 1)
+three_dimensional_arch(xy(-10, -16), xy(10, 16), 1, 2, 3, 1, 1)
