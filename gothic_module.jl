@@ -161,6 +161,17 @@ function offset_arc(previous_arc, offset_value)
     return arc(center, new_start_point, new_end_point)
 end
 
+function get_angular_adjustment_from_offset(arc, offset_value)
+    amplitude = arc_amplitude(arc)
+    radius = arc_radius(arc)
+
+    Δθ = amplitude / radius
+    tangential_offset = offset_value * sin(Δθ / 2)
+    angular_adjustment = tangential_offset / radius
+
+    return angular_adjustment
+end
+
 function arc_bidirectionally_extended_uniform_offset(arc, offset_value)
     delete_shape(arc)
     center = arc_center(arc)
@@ -168,13 +179,11 @@ function arc_bidirectionally_extended_uniform_offset(arc, offset_value)
     start_angle = arc_start_angle(arc)
     amplitude = arc_amplitude(arc)
 
-    scaling_factor = (radius - offset_value) / radius
-    scaled_amplitude = amplitude * scaling_factor
-    bidirectional_extension = amplitude - scaled_amplitude
+    angular_adjustment = get_angular_adjustment_from_offset(arc, offset_value)
 
     new_radius = radius - offset_value
-    new_amplitude = amplitude + bidirectional_extension
-    new_start_angle = start_angle - bidirectional_extension / 2
+    new_start_angle = start_angle - angular_adjustment
+    new_amplitude = amplitude + angular_adjustment * 2
 
     return K.arc(center, new_radius, new_start_angle, new_amplitude)
 end
@@ -186,12 +195,10 @@ function arc_amplitude_extended_offset(arc, offset_value)
     start_angle = arc_start_angle(arc)
     amplitude = arc_amplitude(arc)
 
-    scaling_factor = (radius - offset_value) / radius
-    scaled_amplitude = amplitude * scaling_factor
-    amplitude_extension = (amplitude - scaled_amplitude) / 2
+    angular_adjustment = get_angular_adjustment_from_offset(arc, offset_value) * 2
 
     new_radius = radius - offset_value
-    new_start_angle = start_angle + amplitude_extension
+    new_start_angle = start_angle + angular_adjustment
 
     return K.arc(center, new_radius, new_start_angle, amplitude)
 end
@@ -203,12 +210,10 @@ function arc_start_angle_extended_offset(arc, offset_value)
     start_angle = arc_start_angle(arc)
     amplitude = arc_amplitude(arc)
 
-    scaling_factor = (radius - offset_value) / radius
-    scaled_amplitude = amplitude * scaling_factor
-    amplitude_extension = (amplitude - scaled_amplitude) / 2
+    angular_adjustment = get_angular_adjustment_from_offset(arc, offset_value) * 2
 
     new_radius = radius - offset_value
-    new_start_angle = start_angle - amplitude_extension
+    new_start_angle = start_angle - angular_adjustment
 
     return K.arc(center, new_radius, new_start_angle, amplitude)
 end
@@ -409,8 +414,10 @@ function rosette_pointed_foils(center, radius, n_foils, displacement_ratio, orie
         scale(rotate(arc(fillet_left_arc_center, fillet_bottom_point, fillet_left_point), fillet_arc_position, center), scaling_factor, center)
 
         # Pointed foils
-        foil_right_arc = arc_start_angle_extended_offset(arc(foil_right_arc_center, foil_start_point, arc_intersection), inner_offset)
-        foil_left_arc = arc_amplitude_extended_offset(arc(foil_left_arc_center, arc_intersection, foil_end_point), inner_offset)
+        outer_foil_right_arc = arc(foil_right_arc_center, foil_start_point, arc_intersection)
+        outer_foil_left_arc = arc(foil_left_arc_center, arc_intersection, foil_end_point)
+        foil_right_arc = arc_start_angle_extended_offset(outer_foil_right_arc, inner_offset)
+        foil_left_arc = arc_amplitude_extended_offset(outer_foil_left_arc, inner_offset)
         scale(rotate(foil_left_arc, current_rotation_angle, center), scaling_factor, center)
         scale(rotate(foil_right_arc, current_rotation_angle, center), scaling_factor, center)
 
@@ -423,7 +430,8 @@ function rosette_pointed_foils(center, radius, n_foils, displacement_ratio, orie
         scale(rotate(connection, current_rotation_angle, center), scaling_factor, center)
 
         # 3D rosette pointed foils
-        three_dimensionalized_foil_and_connection = three_dimensionalize_rosette_pointed_foils(foil_right_arc, foil_left_arc, connection, -inner_offset)
+        three_dimensionalized_foil_and_connection = three_dimensionalize_rosette_pointed_foils(outer_foil_right_arc, outer_foil_left_arc, 
+                                                                                                    connection, inner_offset)
         scale(rotate(three_dimensionalized_foil_and_connection.foil_right_arc, current_rotation_angle, center), scaling_factor, center)
         scale(rotate(three_dimensionalized_foil_and_connection.foil_left_arc, current_rotation_angle, center), scaling_factor, center)
         #scale(rotate(three_dimensionalized_foil_and_connection.connection, current_rotation_angle, center), scaling_factor, center)
@@ -571,7 +579,8 @@ function three_dimensionalize_rosette(rosette_center, rosette_radius,
     sweep(rosette, profile)
 end
 
-function three_dimensionalize_rosette_rounded_foils(foil, connection, offset_value, profile = surface_circle(u0(), abs(offset_value) / 2))
+function three_dimensionalize_rosette_rounded_foils(foil, connection, 
+                                                        offset_value, profile = surface_circle(u0(), abs(offset_value) / 2))
     foil = arc_bidirectionally_extended_uniform_offset(foil, offset_value / 2)
     connection = nothing
     
@@ -580,9 +589,10 @@ function three_dimensionalize_rosette_rounded_foils(foil, connection, offset_val
     return (foil = foil, connection = connection)
 end
 
-function three_dimensionalize_rosette_pointed_foils(foil_right_arc, foil_left_arc, connection, offset_value, profile = surface_circle(u0(), abs(offset_value) / 2))
-    foil_right_arc = arc_start_angle_extended_offset(foil_right_arc, offset_value / 2)
-    foil_left_arc = arc_amplitude_extended_offset(foil_left_arc, offset_value / 2)
+function three_dimensionalize_rosette_pointed_foils(foil_right_arc, foil_left_arc, connection, 
+                                                        offset_value, profile = surface_circle(u0(), abs(offset_value) / 2))
+    foil_right_arc = arc_bidirectionally_extended_uniform_offset(foil_right_arc, offset_value / 2)
+    foil_left_arc = arc_bidirectionally_extended_uniform_offset(foil_left_arc, offset_value / 2)
     connection = nothing
 
     foil_right_arc = sweep(foil_right_arc, profile)
@@ -590,6 +600,7 @@ function three_dimensionalize_rosette_pointed_foils(foil_right_arc, foil_left_ar
 
     return (foil_right_arc = foil_right_arc, foil_left_arc = foil_left_arc, connection = connection)
 end
+
 # == MAIN ARCH == #
 function three_dimensional_arch(bottom_left_corner, upper_right_corner, excess, 
                                     recursion_level, vertical_distance_to_sub_arch, 
@@ -667,8 +678,8 @@ function three_dimensional_arch(bottom_left_corner, upper_right_corner, excess,
         rosette_center = rosette.rosette_center
         rosette_radius = rosette.rosette_radius
         three_dimensionalize_rosette(rosette_center, rosette_radius, rosette_radius * outer_offset_ratio, inner_offset)
-        #rosette_rounded_foils(rosette_center, rosette_radius, 9, π/2, rosette_radius * inner_offset_ratio)
-        rosette_pointed_foils(rosette_center, rosette_radius, 9, 2, π/2, rosette_radius * inner_offset_ratio)
+        rosette_rounded_foils(rosette_center, rosette_radius, 9, π/2, rosette_radius * inner_offset_ratio)
+        #rosette_pointed_foils(rosette_center, rosette_radius, 9, 2, π/2, rosette_radius * inner_offset_ratio)
 
         # Fillets
         circular_rosette_fillets(right_arc_center, left_arc_center, arcs_radius - outer_offset, 
