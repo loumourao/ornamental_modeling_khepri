@@ -1,10 +1,6 @@
 using KhepriAutoCAD
-const K = KhepriAutoCAD
 
-delete_all_shapes()
-
-# == UTILITY FUNCTIONS == #
-# == MATH == #
+# == GEOMETRY UTILITY FUNCTIONS == #
 function solve_quadratic(a, b, c)
     discriminant = b^2 - 4 * a * c
     
@@ -16,21 +12,20 @@ function solve_quadratic(a, b, c)
         sqrt_discriminant = sqrt(discriminant)
         return [(-b - sqrt_discriminant) / (2 * a), (-b + sqrt_discriminant) / (2 * a)]
     end
-end
-# == MATH == #
 
-# == VECTORS == #
+    return nothing
+end
+
 function displace_point_by_vector(point, vector, magnitude)
     unit_vector = vector / norm(vector)
 
     return point + unit_vector * magnitude
 end
-# == VECTORS == #
 
 # == CIRCLES == #
 function intersect_circles(m0, r0, m1, r1)
     d = distance(m0, m1)
-    
+
     # d == 0 prevents the set of interesection points when both circles overlap
     if d > r0 + r1 || d < abs(r0 - r1) || d == 0
         return nothing
@@ -46,8 +41,15 @@ function intersect_circles(m0, r0, m1, r1)
     first_intersection_point = p + c_vector
     second_intersection_point = p - c_vector
 
-    return first_intersection_point.y >= second_intersection_point.y ? 
-            [first_intersection_point, second_intersection_point] : [second_intersection_point, first_intersection_point]
+    if first_intersection_point.y >= second_intersection_point.y
+        greater_y_intersection_point = first_intersection_point
+        lower_y_intersection_point = second_intersection_point
+    else
+        greater_y_intersection_point = second_intersection_point
+        lower_y_intersection_point = first_intersection_point
+    end
+
+    return (greater_y_intersection_point = greater_y_intersection_point, lower_y_intersection_point = lower_y_intersection_point)
 end
 
 function intersect_line_ellipse(p0, v, m, r)
@@ -68,7 +70,8 @@ function intersect_line_ellipse(p0, v, m, r)
     q0 = p0 + v * t0
     q1 = p0 + v * t1
 
-    return [q0, q1, t0, t1]
+    return (first_intersection_point = q0, second_intersection_point = q1, 
+                first_intersection_point_parameter = t0, second_intersection_point_parameter = t1)
 end
 
 # == ARCS == #
@@ -86,7 +89,7 @@ function arc(center, start_point, end_point)
         amplitude = 2π - ccw_start_angle + ccw_end_angle
     end
 
-    return K.arc(center, radius, ccw_start_angle, amplitude)
+    return KhepriAutoCAD.arc(center, radius, ccw_start_angle, amplitude)
 end
 
 function arc_start_point(arc)
@@ -185,7 +188,7 @@ function arc_bidirectionally_extended_uniform_offset(arc, offset_value)
     new_start_angle = start_angle - angular_adjustment
     new_amplitude = amplitude + angular_adjustment * 2
 
-    return K.arc(center, new_radius, new_start_angle, new_amplitude)
+    return KhepriAutoCAD.arc(center, new_radius, new_start_angle, new_amplitude)
 end
 
 function arc_amplitude_extended_offset(arc, offset_value)
@@ -200,7 +203,7 @@ function arc_amplitude_extended_offset(arc, offset_value)
     new_radius = radius - offset_value
     new_start_angle = start_angle + angular_adjustment
 
-    return K.arc(center, new_radius, new_start_angle, amplitude)
+    return KhepriAutoCAD.arc(center, new_radius, new_start_angle, amplitude)
 end
 
 function arc_start_angle_extended_offset(arc, offset_value)
@@ -215,26 +218,15 @@ function arc_start_angle_extended_offset(arc, offset_value)
     new_radius = radius - offset_value
     new_start_angle = start_angle - angular_adjustment
 
-    return K.arc(center, new_radius, new_start_angle, amplitude)
+    return KhepriAutoCAD.arc(center, new_radius, new_start_angle, amplitude)
 end
 # == ARCS == #
 # == CIRCLES == #
+# == GEOMETRY UTILITY FUNCTIONS == #
 
+# == GOTHIC STRUCTURAL GEOMETRY == #
 # == ARCHES == #
-function get_offset_excess(left_point, right_point, previous_excess, offset_value)
-    width_vector = right_point - left_point
-    width = norm(width_vector)
-    left_arc_center = displace_point_by_vector(left_point, width_vector, width * previous_excess)
-    
-    offset_left_point = left_point + vx(offset_value)
-    offset_right_point = right_point - vx(offset_value)
-    offset_width_vector = offset_right_point - offset_left_point
-    offset_width = norm(offset_width_vector)
-    offset_radius = distance(left_point, left_arc_center) - offset_value
-
-    return offset_radius / offset_width
-end
-
+# == BODIES == #
 function get_left_sub_arch_body(bottom_left_corner, upper_right_corner, outer_offset, inner_offset, vertical_distance_to_sub_arches)
     bottom_right_corner = xy(upper_right_corner.x, bottom_left_corner.y)
     arch_bottom_midpoint = intermediate_loc(bottom_left_corner, bottom_right_corner)
@@ -260,11 +252,23 @@ function get_right_sub_arch_body(bottom_left_corner, upper_right_corner, outer_o
     return (bottom_left_corner = bottom_left_corner, bottom_right_corner = bottom_right_corner, 
                 upper_left_corner = upper_left_corner, upper_right_corner = upper_right_corner)
 end
-# == ARCHES == #
-# == UTILITY FUNCTIONS == #
+# == BODIES == #
 
-# == ORNAMENTATION FUNCTIONS == #
-# == ARCH TOPS == #
+# == TOPS == #
+function get_offset_excess(left_point, right_point, previous_excess, offset_value)
+    width_vector = right_point - left_point
+    width = norm(width_vector)
+    left_arc_center = displace_point_by_vector(left_point, width_vector, width * previous_excess)
+
+    offset_left_point = left_point + vx(offset_value)
+    offset_right_point = right_point - vx(offset_value)
+    offset_width_vector = offset_right_point - offset_left_point
+    offset_width = norm(offset_width_vector)
+    offset_radius = distance(left_point, left_arc_center) - offset_value
+
+    return offset_radius / offset_width
+end
+
 function lancet_arch_top(left_point, right_point, excess)
     arch_midpoint = intermediate_loc(left_point, right_point)
     
@@ -288,9 +292,10 @@ function lancet_arch_top(left_point, right_point, excess)
 
     return (right_arc = right_arc, left_arc = left_arc)
 end
-# == ARCH TOPS == #
+# == TOPS == #
+# == ARCHES == #
 
-# == ROSETTE == #
+# == ROSETTES == #
 function compute_rosette(bottom_left_corner, upper_right_corner, 
                             main_arch_right_arc, left_sub_arch_right_arc, 
                                 outer_offset, inner_offset)
@@ -305,142 +310,12 @@ function compute_rosette(bottom_left_corner, upper_right_corner,
     vertical_axis = vy(1)
     vertical_axis_point = intermediate_loc(bottom_left_corner, upper_right_corner)
 
-    rosette_center = intersect_line_ellipse(vertical_axis_point, vertical_axis, ellipse_center, ellipse_radius)[2]
+    rosette_center = intersect_line_ellipse(vertical_axis_point, vertical_axis, ellipse_center, ellipse_radius).second_intersection_point
     rosette_radius = distance(rosette_center, left_sub_arch_right_arc_center) - left_sub_arch_right_arc_radius - inner_offset
 
     return (rosette_center = rosette_center, rosette_radius = rosette_radius)
 end
-
-function rosette_rounded_foils(center, radius, n_foils, orientation, inner_offset)
-    # Check if n_foils >= 1, otherwise raise an error
-    Δα = 2π / n_foils
-    
-    foil_radius = (radius * sin(Δα/2)) / (1 + sin(Δα/2))
-    center_to_foil_center_length = radius - foil_radius
-    center_to_foil_end_points = center_to_foil_center_length * cos(Δα/2)
-
-    foil_center = center + vpol(center_to_foil_center_length, orientation)
-    foil_start_point = center + vpol(center_to_foil_end_points, orientation - (Δα/2))
-    foil_end_point = center + vpol(center_to_foil_end_points, orientation + (Δα/2))
-
-    
-    fillet_points = get_rosette_rounded_foils_fillet_points(center, radius, 
-                                                                foil_center, foil_radius, 
-                                                                    Δα, inner_offset)
-    fillet_right_point = fillet_points.fillet_right_point
-    fillet_left_point = fillet_points.fillet_left_point
-    fillet_bottom_point = fillet_points.fillet_bottom_point
-    fillet_right_arc_center = fillet_points.fillet_right_arc_center
-    fillet_left_arc_center = fillet_points.fillet_left_arc_center
-    fillet_upper_arc_center = fillet_points.fillet_upper_arc_center
-    
-    current_rotation_angle = 0
-
-    while n_foils > 0
-        # Fillets
-        fillet_arc_position = current_rotation_angle + orientation
-        rotate(arc(fillet_right_arc_center, fillet_right_point, fillet_bottom_point), fillet_arc_position, center)
-        rotate(arc(fillet_upper_arc_center, fillet_right_point, fillet_left_point), fillet_arc_position, center)
-        rotate(arc(fillet_left_arc_center, fillet_bottom_point, fillet_left_point), fillet_arc_position, center)
-
-        # Rounded foils
-        foil = arc_bidirectionally_extended_uniform_offset(arc(foil_center, foil_start_point, foil_end_point), inner_offset)
-        rotate(foil, current_rotation_angle, center)
-
-        # Rounded foils connections
-        connection_start_point = arc_end_point(foil)
-        center_to_foil_start_point = arc_start_point(foil) - center
-        center_to_foil_start_point_polar_angle = atan(center_to_foil_start_point.y, center_to_foil_start_point.x)
-        connection_end_point = center + vpol(norm(center_to_foil_start_point), center_to_foil_start_point_polar_angle + Δα)
-        connection = line(connection_start_point, connection_end_point)
-        rotate(connection, current_rotation_angle, center)
-
-        # 3D rosette rounded foils
-        three_dimensionalized_foil_and_connection = three_dimensionalize_rosette_rounded_foils(foil, connection, -inner_offset)
-        rotate(three_dimensionalized_foil_and_connection.foil, current_rotation_angle, center)
-        #rotate(three_dimensionalized_foil_and_connection.connection, current_rotation_angle, center)
-
-        current_rotation_angle += Δα
-        n_foils -= 1
-    end
-end
-
-function rosette_pointed_foils(center, radius, n_foils, displacement_ratio, orientation, inner_offset)
-    # Check if n_foils >= 1 and if displacement_ratio > 1, otherwise raise an error
-    Δα = 2π / n_foils
-
-    rounded_foil_radius = (radius * sin(Δα/2)) / (1 + sin(Δα/2))
-    center_to_foil_center_length = radius - rounded_foil_radius
-    center_to_foil_end_points = center_to_foil_center_length * cos(Δα/2)
-
-    rounded_foil_center = center + vpol(center_to_foil_center_length, orientation)
-    foil_start_point = center + vpol(center_to_foil_end_points, orientation - (Δα/2))
-    foil_end_point = center + vpol(center_to_foil_end_points, orientation + (Δα/2))
-
-    foil_right_arc_center_displacement_vector = rounded_foil_center - foil_start_point
-    foil_left_arc_center_displacement_vector = rounded_foil_center - foil_end_point
-    displacement_vectors_magnitude = norm(foil_right_arc_center_displacement_vector) * displacement_ratio
-
-    foil_right_arc_center = displace_point_by_vector(foil_start_point, foil_right_arc_center_displacement_vector, displacement_vectors_magnitude)
-    foil_left_arc_center = displace_point_by_vector(foil_end_point, foil_left_arc_center_displacement_vector, displacement_vectors_magnitude)
-
-    pointed_foil_radius = distance(foil_right_arc_center, foil_start_point)
-    arc_intersection_axis_point = intermediate_loc(foil_right_arc_center, foil_left_arc_center)
-    foil_right_arc_center_to_arc_intersection_axis_point_length = distance(foil_right_arc_center, arc_intersection_axis_point)
-
-    rounded_foil_center_to_arc_intersection_vector = arc_intersection_axis_point - rounded_foil_center
-    rounded_foil_center_to_arc_intersection_vector_magnitude = sqrt(pointed_foil_radius^2 - foil_right_arc_center_to_arc_intersection_axis_point_length^2)
-    arc_intersection = displace_point_by_vector(arc_intersection_axis_point, rounded_foil_center_to_arc_intersection_vector, rounded_foil_center_to_arc_intersection_vector_magnitude)
-
-    scaling_factor = radius / distance(center, arc_intersection)
-
-    fillet_points = get_rosette_pointed_foils_fillet_points(center, radius, 
-                                                                rounded_foil_center, foil_right_arc_center, pointed_foil_radius, 
-                                                                    Δα, scaling_factor, inner_offset)
-    fillet_right_point = fillet_points.fillet_right_point
-    fillet_left_point = fillet_points.fillet_left_point
-    fillet_bottom_point = fillet_points.fillet_bottom_point
-    fillet_right_arc_center = fillet_points.fillet_right_arc_center
-    fillet_left_arc_center = fillet_points.fillet_left_arc_center
-    fillet_upper_arc_center = fillet_points.fillet_upper_arc_center
-
-    current_rotation_angle = 0
-
-    while n_foils > 0
-        # Fillets
-        fillet_arc_position = current_rotation_angle + orientation
-        scale(rotate(arc(fillet_right_arc_center, fillet_right_point, fillet_bottom_point), fillet_arc_position, center), scaling_factor, center)
-        scale(rotate(arc(fillet_upper_arc_center, fillet_right_point, fillet_left_point), fillet_arc_position, center), scaling_factor, center)
-        scale(rotate(arc(fillet_left_arc_center, fillet_bottom_point, fillet_left_point), fillet_arc_position, center), scaling_factor, center)
-
-        # Pointed foils
-        outer_foil_right_arc = arc(foil_right_arc_center, foil_start_point, arc_intersection)
-        outer_foil_left_arc = arc(foil_left_arc_center, arc_intersection, foil_end_point)
-        foil_right_arc = arc_start_angle_extended_offset(outer_foil_right_arc, inner_offset)
-        foil_left_arc = arc_amplitude_extended_offset(outer_foil_left_arc, inner_offset)
-        scale(rotate(foil_left_arc, current_rotation_angle, center), scaling_factor, center)
-        scale(rotate(foil_right_arc, current_rotation_angle, center), scaling_factor, center)
-
-        # Pointed foils connections
-        connection_start_point = arc_end_point(foil_left_arc)
-        center_to_foil_start_point = arc_start_point(foil_right_arc) - center
-        center_to_foil_start_point_polar_angle = atan(center_to_foil_start_point.y, center_to_foil_start_point.x)
-        connection_end_point = center + vpol(norm(center_to_foil_start_point), center_to_foil_start_point_polar_angle + Δα)
-        connection = line(connection_start_point, connection_end_point)
-        scale(rotate(connection, current_rotation_angle, center), scaling_factor, center)
-
-        # 3D rosette pointed foils
-        three_dimensionalized_foil_and_connection = three_dimensionalize_rosette_pointed_foils(outer_foil_right_arc, outer_foil_left_arc, 
-                                                                                                    connection, inner_offset)
-        scale(rotate(three_dimensionalized_foil_and_connection.foil_right_arc, current_rotation_angle, center), scaling_factor, center)
-        scale(rotate(three_dimensionalized_foil_and_connection.foil_left_arc, current_rotation_angle, center), scaling_factor, center)
-        #scale(rotate(three_dimensionalized_foil_and_connection.connection, current_rotation_angle, center), scaling_factor, center)
-
-        n_foils -= 1
-        current_rotation_angle += Δα
-    end
-end
-# == ROSETTE == #
+# == ROSETTES == #
 
 # == FILLETS == #
 function circular_rosette_fillets(right_arc_center, left_arc_center, arcs_radius,
@@ -448,9 +323,9 @@ function circular_rosette_fillets(right_arc_center, left_arc_center, arcs_radius
                                         right_sub_arch_right_arc_center, right_sub_arch_left_arc_center, 
                                             left_sub_arch_left_arc_center, left_sub_arch_right_arc_center, sub_arcs_radius)
     # Right fillet points calculations
-    right_fillet_bottom_point = intersect_circles(right_arc_center, arcs_radius, right_sub_arch_right_arc_center, sub_arcs_radius)[1]
-    right_fillet_top_point = intersect_circles(right_arc_center, arcs_radius, rosette_center, rosette_radius)[2]
-    right_fillet_left_point = intersect_circles(right_sub_arch_right_arc_center, sub_arcs_radius, rosette_center, rosette_radius)[1]
+    right_fillet_bottom_point = intersect_circles(right_arc_center, arcs_radius, right_sub_arch_right_arc_center, sub_arcs_radius).greater_y_intersection_point
+    right_fillet_top_point = intersect_circles(right_arc_center, arcs_radius, rosette_center, rosette_radius).lower_y_intersection_point
+    right_fillet_left_point = intersect_circles(right_sub_arch_right_arc_center, sub_arcs_radius, rosette_center, rosette_radius).greater_y_intersection_point
 
     # Right fillet modeling
     right_fillet_right_arc = arc(right_arc_center, right_fillet_bottom_point, right_fillet_top_point)
@@ -458,9 +333,9 @@ function circular_rosette_fillets(right_arc_center, left_arc_center, arcs_radius
     right_fillet_bottom_arc = arc(right_sub_arch_right_arc_center, right_fillet_bottom_point, right_fillet_left_point)
 
     # Top fillet points calculations
-    top_fillet_right_point = intersect_circles(right_arc_center, arcs_radius, rosette_center, rosette_radius)[1]
-    top_fillet_top_point = intersect_circles(left_arc_center, arcs_radius, right_arc_center, arcs_radius)[1]
-    top_fillet_left_point = intersect_circles(left_arc_center, arcs_radius, rosette_center, rosette_radius)[1]
+    top_fillet_right_point = intersect_circles(right_arc_center, arcs_radius, rosette_center, rosette_radius).greater_y_intersection_point
+    top_fillet_top_point = intersect_circles(left_arc_center, arcs_radius, right_arc_center, arcs_radius).greater_y_intersection_point
+    top_fillet_left_point = intersect_circles(left_arc_center, arcs_radius, rosette_center, rosette_radius).greater_y_intersection_point
 
     # Top fillet modeling
     arc(right_arc_center, top_fillet_right_point, top_fillet_top_point)
@@ -488,62 +363,21 @@ function circular_rosette_fillets(right_arc_center, left_arc_center, arcs_radius
     #arc(left_sub_arch_left_arc_center, left_fillet_right_point, left_fillet_bottom_point)
 
     # Bottom fillet points calculations
-    bottom_fillet_right_point = intersect_circles(right_sub_arch_left_arc_center, sub_arcs_radius, rosette_center, rosette_radius)[2]
-    bottom_fillet_left_point = intersect_circles(left_sub_arch_right_arc_center, sub_arcs_radius, rosette_center, rosette_radius)[2]
-    bottom_fillet_bottom_point = intersect_circles(left_sub_arch_right_arc_center, sub_arcs_radius, right_sub_arch_left_arc_center, sub_arcs_radius)[1]
+    bottom_fillet_right_point = intersect_circles(right_sub_arch_left_arc_center, sub_arcs_radius, rosette_center, rosette_radius).lower_y_intersection_point
+    bottom_fillet_left_point = intersect_circles(left_sub_arch_right_arc_center, sub_arcs_radius, rosette_center, rosette_radius).lower_y_intersection_point
+    bottom_fillet_bottom_point = intersect_circles(left_sub_arch_right_arc_center, sub_arcs_radius, right_sub_arch_left_arc_center, sub_arcs_radius).greater_y_intersection_point
 
     # Bottom fillet modeling
     arc(right_sub_arch_left_arc_center, bottom_fillet_right_point, bottom_fillet_bottom_point)
     arc(rosette_center, bottom_fillet_left_point, bottom_fillet_right_point)
     arc(left_sub_arch_right_arc_center, bottom_fillet_bottom_point, bottom_fillet_left_point)
 end
-
-function get_rosette_rounded_foils_fillet_points(rosette_center, rosette_radius, 
-                                                    foil_center, foil_radius, 
-                                                        Δα, inner_offset)
-    rosette_radius = rosette_radius - inner_offset
-    rosette_center_to_foil_center_length = distance(rosette_center, foil_center)
-
-    right_foil_center = rosette_center + vpol(rosette_center_to_foil_center_length, 0)
-    left_foil_center = rosette_center + vpol(rosette_center_to_foil_center_length, Δα)
-    displacement_vector = left_foil_center - right_foil_center
-
-    fillet_right_point = intersect_circles(rosette_center, rosette_radius, right_foil_center, foil_radius)[1]
-    fillet_left_point = intersect_circles(rosette_center, rosette_radius, left_foil_center, foil_radius)[2]
-    fillet_bottom_point = displace_point_by_vector(right_foil_center, displacement_vector, norm(displacement_vector) / 2)
-
-    return (fillet_right_point = fillet_right_point, fillet_left_point = fillet_left_point, fillet_bottom_point = fillet_bottom_point, 
-                fillet_right_arc_center = right_foil_center, fillet_left_arc_center = left_foil_center, fillet_upper_arc_center = rosette_center)
-end
-
-function get_rosette_pointed_foils_fillet_points(rosette_center, rosette_radius, 
-                                                    foil_center, right_arc_center, foil_radius, 
-                                                        Δα, scaling_factor, inner_offset)
-    scaling_factor = 1 / scaling_factor
-    rosette_radius = rosette_radius * scaling_factor - inner_offset
-
-    center_to_foil_center_vector = foil_center - rosette_center
-    center_to_foil_arc_center_vector = right_arc_center - rosette_center
-    center_to_foil_center_length = norm(center_to_foil_center_vector)
-    center_to_foil_arc_center_length = norm(center_to_foil_arc_center_vector)
-    Δβ = angle_between(center_to_foil_center_vector, center_to_foil_arc_center_vector)
-
-    right_foil_center = rosette_center + vpol(center_to_foil_center_length, 0)
-    left_foil_center = rosette_center + vpol(center_to_foil_center_length, Δα)
-    right_foil_left_arc_center = rosette_center + vpol(center_to_foil_arc_center_length, -Δβ)
-    left_foil_right_arc_center = rosette_center + vpol(center_to_foil_arc_center_length, Δα + Δβ)
-    displacement_vector = left_foil_center - right_foil_center
-
-    fillet_right_point = intersect_circles(rosette_center, rosette_radius, right_foil_left_arc_center, foil_radius)[1]
-    fillet_left_point = intersect_circles(rosette_center, rosette_radius, left_foil_right_arc_center, foil_radius)[2]
-    fillet_bottom_point = displace_point_by_vector(right_foil_center, displacement_vector, norm(displacement_vector) / 2)
-
-    return (fillet_right_point = fillet_right_point, fillet_left_point = fillet_left_point, fillet_bottom_point = fillet_bottom_point, 
-                fillet_right_arc_center = right_foil_left_arc_center, fillet_left_arc_center = left_foil_right_arc_center, fillet_upper_arc_center = rosette_center)
-end
 # == FILLETS == #
-# == ORNAMENTATION FUNCTIONS == #
+# == GOTHIC STRUCTURAL GEOMETRY == #
 
+# == GOTHIC ORNAMENTAL GEOMETRY == #
+# == SOLID ORNAMENTATIONS == #
+# == ARCHES == #
 function three_dimensionalize_arch_top(left_arc, right_arc, offset_value, profile = surface_circle(u0(), offset_value / 2))
     left_arc = offset_arc(left_arc, offset_value / 2)
     right_arc = offset_arc(right_arc, offset_value / 2)
@@ -571,7 +405,9 @@ function three_dimensionalize_arch_middle(bottom_left_corner, upper_right_corner
 
     sweep(arch_middle, profile)
 end
+# == ARCHES == #
 
+# == ROSETTES == #
 function three_dimensionalize_rosette(rosette_center, rosette_radius, 
                                         outer_offset, inner_offset, 
                                             profile = surface_circle(u0(), (outer_offset + inner_offset) / 2))
@@ -600,9 +436,199 @@ function three_dimensionalize_rosette_pointed_foils(foil_right_arc, foil_left_ar
 
     return (foil_right_arc = foil_right_arc, foil_left_arc = foil_left_arc, connection = connection)
 end
+# == ROSETTES == #
+# == SOLID ORNAMENTATIONS == #
 
-# == MAIN ARCH == #
-function three_dimensional_arch(bottom_left_corner, upper_right_corner, excess, 
+# == ROSETTES == #
+function get_rounded_foil(rosette_center, rosette_radius, Δα, orientation)
+    foil_radius = (rosette_radius * sin(Δα/2)) / (1 + sin(Δα/2))
+    rosette_center_to_foil_center_length = rosette_radius - foil_radius
+    rosette_center_to_foil_end_points = rosette_center_to_foil_center_length * cos(Δα/2)
+
+    foil_center = rosette_center + vpol(rosette_center_to_foil_center_length, orientation)
+    foil_start_point = rosette_center + vpol(rosette_center_to_foil_end_points, orientation - (Δα/2))
+    foil_end_point = rosette_center + vpol(rosette_center_to_foil_end_points, orientation + (Δα/2))
+
+    return arc(foil_center, foil_start_point, foil_end_point)
+end
+
+function get_pointed_foil(rosette_center, rosette_radius, Δα, displacement_ratio, orientation)
+    rounded_foil = get_rounded_foil(rosette_center, rosette_radius, Δα, orientation)
+    delete_shape(rounded_foil)
+    rounded_foil_center = arc_center(rounded_foil)
+    rounded_foil_start_point = arc_start_point(rounded_foil)
+    rounded_foil_end_point = arc_end_point(rounded_foil)
+
+    pointed_foil_right_arc_center_displacement_vector = rounded_foil_center - rounded_foil_start_point
+    pointed_foil_left_arc_center_displacement_vector = rounded_foil_center - rounded_foil_end_point
+    displacement_vectors_magnitude = norm(pointed_foil_right_arc_center_displacement_vector) * displacement_ratio
+
+    pointed_foil_right_arc_center = displace_point_by_vector(rounded_foil_start_point, pointed_foil_right_arc_center_displacement_vector, displacement_vectors_magnitude)
+    pointed_foil_left_arc_center = displace_point_by_vector(rounded_foil_end_point, pointed_foil_left_arc_center_displacement_vector, displacement_vectors_magnitude)
+    pointed_foil_radius = distance(pointed_foil_right_arc_center, rounded_foil_start_point)
+
+    arc_intersection_axis_point = intermediate_loc(pointed_foil_right_arc_center, pointed_foil_left_arc_center)
+    pointed_foil_right_arc_center_to_arc_intersection_axis_point_length = distance(pointed_foil_right_arc_center, arc_intersection_axis_point)
+    rounded_foil_center_to_arc_intersection_vector = arc_intersection_axis_point - rounded_foil_center
+    rounded_foil_center_to_arc_intersection_vector_magnitude = sqrt(pointed_foil_radius^2 - pointed_foil_right_arc_center_to_arc_intersection_axis_point_length^2)
+    arc_intersection = displace_point_by_vector(arc_intersection_axis_point, rounded_foil_center_to_arc_intersection_vector, rounded_foil_center_to_arc_intersection_vector_magnitude)
+
+    pointed_foil_right_arc = arc(pointed_foil_right_arc_center, rounded_foil_start_point, arc_intersection) 
+    pointed_foil_left_arc = arc(pointed_foil_left_arc_center, arc_intersection, rounded_foil_end_point)
+
+    return (right_arc = pointed_foil_right_arc, left_arc = pointed_foil_left_arc, rounded_foil_center = rounded_foil_center)
+end
+
+# == FILLETS == #
+function get_rosette_rounded_foils_fillet(rosette_center, rosette_radius, 
+                                                    foil_center, foil_radius, 
+                                                        Δα, inner_offset)
+    rosette_radius = rosette_radius - inner_offset
+    rosette_center_to_foil_center_length = distance(rosette_center, foil_center)
+
+    fillet_right_arc_center = rosette_center + vpol(rosette_center_to_foil_center_length, 0)
+    fillet_upper_arc_center = rosette_center
+    fillet_left_arc_center = rosette_center + vpol(rosette_center_to_foil_center_length, Δα)
+
+    displacement_vector = fillet_left_arc_center - fillet_right_arc_center
+
+    fillet_right_point = intersect_circles(rosette_center, rosette_radius, fillet_right_arc_center, foil_radius).greater_y_intersection_point
+    fillet_left_point = intersect_circles(rosette_center, rosette_radius, fillet_left_arc_center, foil_radius).lower_y_intersection_point
+    fillet_bottom_point = displace_point_by_vector(fillet_right_arc_center, displacement_vector, norm(displacement_vector) / 2)
+
+    fillet_right_arc = arc(fillet_right_arc_center, fillet_right_point, fillet_bottom_point)
+    fillet_upper_arc = arc(fillet_upper_arc_center, fillet_right_point, fillet_left_point)
+    fillet_left_arc = arc(fillet_left_arc_center, fillet_bottom_point, fillet_left_point)
+
+    return (right_arc = fillet_right_arc, upper_arc = fillet_upper_arc, left_arc = fillet_left_arc)
+end
+
+function get_rosette_pointed_foils_fillet(rosette_center, rosette_radius, 
+                                                    foil_center, right_arc_center, foil_radius, 
+                                                        Δα, scaling_factor, inner_offset)
+    scaling_factor = 1 / scaling_factor
+    rosette_radius = rosette_radius * scaling_factor - inner_offset
+
+    rosette_center_to_foil_center_vector = foil_center - rosette_center
+    rosette_center_to_foil_arc_center_vector = right_arc_center - rosette_center
+    rosette_center_to_foil_center_length = norm(rosette_center_to_foil_center_vector)
+    rosette_center_to_foil_arc_center_length = norm(rosette_center_to_foil_arc_center_vector)
+    Δβ = angle_between(rosette_center_to_foil_center_vector, rosette_center_to_foil_arc_center_vector)
+
+    right_foil_center = rosette_center + vpol(rosette_center_to_foil_center_length, 0)
+    left_foil_center = rosette_center + vpol(rosette_center_to_foil_center_length, Δα)
+
+    fillet_right_arc_center = rosette_center + vpol(rosette_center_to_foil_arc_center_length, -Δβ)
+    fillet_upper_arc_center = rosette_center
+    fillet_left_arc_center = rosette_center + vpol(rosette_center_to_foil_arc_center_length, Δα + Δβ)
+
+    displacement_vector = left_foil_center - right_foil_center
+
+    fillet_right_point = intersect_circles(rosette_center, rosette_radius, fillet_right_arc_center, foil_radius).greater_y_intersection_point
+    fillet_left_point = intersect_circles(rosette_center, rosette_radius, fillet_left_arc_center, foil_radius).lower_y_intersection_point
+    fillet_bottom_point = displace_point_by_vector(right_foil_center, displacement_vector, norm(displacement_vector) / 2)
+
+    fillet_right_arc = arc(fillet_right_arc_center, fillet_right_point, fillet_bottom_point)
+    fillet_upper_arc = arc(fillet_upper_arc_center, fillet_right_point, fillet_left_point)
+    fillet_left_arc = arc(fillet_left_arc_center, fillet_bottom_point, fillet_left_point)
+
+    return (right_arc = fillet_right_arc, upper_arc = fillet_upper_arc, left_arc = fillet_left_arc)
+end
+# == FILLETS == #
+
+function rosette_rounded_foils(rosette_center, rosette_radius, n_foils, orientation, inner_offset)
+    # Check if n_foils >= 1, otherwise raise an error
+    Δα = 2π / n_foils
+
+    foil = get_rounded_foil(rosette_center, rosette_radius, Δα, orientation)
+    fillet = get_rosette_rounded_foils_fillet(rosette_center, rosette_radius, 
+                                                arc_center(foil), arc_radius(foil), 
+                                                    Δα, inner_offset)
+    foil = arc_bidirectionally_extended_uniform_offset(foil, inner_offset)
+    current_rotation_angle = 0
+
+    while n_foils > 0
+        # Fillets
+        fillet_arc_position = current_rotation_angle + orientation
+        rotate(fillet.right_arc, fillet_arc_position, rosette_center)
+        rotate(fillet.upper_arc, fillet_arc_position, rosette_center)
+        rotate(fillet.left_arc, fillet_arc_position, rosette_center)
+
+        # Rounded foils
+        rotate(foil, current_rotation_angle, rosette_center)
+
+        # Rounded foils connections
+        connection_start_point = arc_end_point(foil)
+        rosette_center_to_foil_start_point = arc_start_point(foil) - rosette_center
+        rosette_center_to_foil_start_point_polar_angle = atan(rosette_center_to_foil_start_point.y, rosette_center_to_foil_start_point.x)
+        connection_end_point = rosette_center + vpol(norm(rosette_center_to_foil_start_point), rosette_center_to_foil_start_point_polar_angle + Δα)
+        connection = line(connection_start_point, connection_end_point)
+        rotate(connection, current_rotation_angle, rosette_center)
+
+        # 3D rosette rounded foils
+        three_dimensionalized_foil_and_connection = three_dimensionalize_rosette_rounded_foils(foil, connection, -inner_offset)
+        rotate(three_dimensionalized_foil_and_connection.foil, current_rotation_angle, rosette_center)
+        #rotate(three_dimensionalized_foil_and_connection.connection, current_rotation_angle, rosette_center)
+
+        current_rotation_angle += Δα
+        n_foils -= 1
+    end
+end
+
+function rosette_pointed_foils(rosette_center, rosette_radius, n_foils, displacement_ratio, orientation, inner_offset)
+    # Check if n_foils >= 1 and if displacement_ratio > 1, otherwise raise an error
+    Δα = 2π / n_foils
+
+    foil = get_pointed_foil(rosette_center, rosette_radius, Δα, displacement_ratio, orientation)
+    rounded_foil_center = foil.rounded_foil_center
+    outer_foil_right_arc = foil.right_arc 
+    outer_foil_left_arc = foil.left_arc
+    foil_radius = arc_radius(outer_foil_right_arc)
+    foil_right_arc = arc_start_angle_extended_offset(outer_foil_right_arc, inner_offset)
+    foil_left_arc = arc_amplitude_extended_offset(outer_foil_left_arc, inner_offset)
+    
+    scaling_factor = rosette_radius / distance(rosette_center, arc_end_point(foil_right_arc))
+    fillet = get_rosette_pointed_foils_fillet(rosette_center, rosette_radius, 
+                                                rounded_foil_center, arc_center(outer_foil_right_arc), foil_radius, 
+                                                    Δα, scaling_factor, inner_offset)
+
+    current_rotation_angle = 0
+
+    while n_foils > 0
+        # Fillets
+        fillet_arc_position = current_rotation_angle + orientation
+        scale(rotate(fillet.right_arc, fillet_arc_position, rosette_center), scaling_factor, rosette_center)
+        scale(rotate(fillet.upper_arc, fillet_arc_position, rosette_center), scaling_factor, rosette_center)
+        scale(rotate(fillet.left_arc, fillet_arc_position, rosette_center), scaling_factor, rosette_center)
+
+        # Pointed foils
+        scale(rotate(foil_right_arc, current_rotation_angle, rosette_center), scaling_factor, rosette_center)
+        scale(rotate(foil_left_arc, current_rotation_angle, rosette_center), scaling_factor, rosette_center)
+
+        # Pointed foils connections
+        connection_start_point = arc_end_point(foil_left_arc)
+        rosette_center_to_foil_start_point = arc_start_point(foil_right_arc) - rosette_center
+        rosette_center_to_foil_start_point_polar_angle = atan(rosette_center_to_foil_start_point.y, rosette_center_to_foil_start_point.x)
+        connection_end_point = rosette_center + vpol(norm(rosette_center_to_foil_start_point), rosette_center_to_foil_start_point_polar_angle + Δα)
+        connection = line(connection_start_point, connection_end_point)
+        scale(rotate(connection, current_rotation_angle, rosette_center), scaling_factor, rosette_center)
+
+        # 3D rosette pointed foils
+        three_dimensionalized_foil_and_connection = three_dimensionalize_rosette_pointed_foils(outer_foil_right_arc, outer_foil_left_arc, 
+                                                                                                    connection, inner_offset)
+        scale(rotate(three_dimensionalized_foil_and_connection.foil_right_arc, current_rotation_angle, rosette_center), scaling_factor, rosette_center)
+        scale(rotate(three_dimensionalized_foil_and_connection.foil_left_arc, current_rotation_angle, rosette_center), scaling_factor, rosette_center)
+        #scale(rotate(three_dimensionalized_foil_and_connection.connection, current_rotation_angle, rosette_center), scaling_factor, rosette_center)
+
+        n_foils -= 1
+        current_rotation_angle += Δα
+    end
+end
+# == ROSETTES == #
+# == GOTHIC ORNAMENTAL GEOMETRY == #
+
+# == GOTHIC WINDOWS == #
+function gothic_window(bottom_left_corner, upper_right_corner, excess, 
                                     recursion_level, vertical_distance_to_sub_arch, 
                                         outer_offset, inner_offset)
     # Arch body auxiliary coordinates
@@ -621,7 +647,7 @@ function three_dimensional_arch(bottom_left_corner, upper_right_corner, excess,
     # 3D Arch
     three_dimensionalize_arch_top(arcs.left_arc, arcs.right_arc, outer_offset)
     three_dimensionalize_arch_body(upper_left_corner, bottom_left_corner, bottom_right_corner, upper_right_corner, outer_offset)
-    
+        
     # Sub-Arches
     if recursion_level > 0
         # 3D Arch continuation
@@ -631,7 +657,7 @@ function three_dimensional_arch(bottom_left_corner, upper_right_corner, excess,
         arch_width = distance(bottom_left_corner, bottom_right_corner)
         outer_offset_ratio = outer_offset / arch_width
         inner_offset_ratio = inner_offset / arch_width
-        
+            
         # Sub-Arches auxiliary calculations
         sub_arch_excess = get_offset_excess(upper_left_corner, upper_right_corner, excess, outer_offset)
         left_sub_arch_body = get_left_sub_arch_body(bottom_left_corner, upper_right_corner, outer_offset, inner_offset, vertical_distance_to_sub_arch)
@@ -651,16 +677,16 @@ function three_dimensional_arch(bottom_left_corner, upper_right_corner, excess,
 
         right_outer_sub_arch_top = lancet_arch_top(right_sub_arch_body.upper_left_corner - vx(inner_offset), right_sub_arch_body.upper_right_corner + vx(inner_offset),
                                                         outer_sub_arch_excess)
-        
+            
         # 3D outer arches
         three_dimensionalize_arch_top(left_outer_sub_arch_top.left_arc, left_outer_sub_arch_top.right_arc, inner_offset)
         three_dimensionalize_arch_top(right_outer_sub_arch_top.left_arc, right_outer_sub_arch_top.right_arc, inner_offset)
 
         # Sub-arches
-        left_sub_arch = three_dimensional_arch(left_sub_arch_body.bottom_left_corner, left_sub_arch_body.upper_right_corner, sub_arch_excess, 
+        left_sub_arch = gothic_window(left_sub_arch_body.bottom_left_corner, left_sub_arch_body.upper_right_corner, sub_arch_excess, 
                                                     recursion_level - 1, vertical_distance_to_sub_arch, 
                                                         sub_arch_outer_offset, sub_arch_inner_offset)
-        right_sub_arch = three_dimensional_arch(right_sub_arch_body.bottom_left_corner, right_sub_arch_body.upper_right_corner, sub_arch_excess, 
+        right_sub_arch = gothic_window(right_sub_arch_body.bottom_left_corner, right_sub_arch_body.upper_right_corner, sub_arch_excess, 
                                                     recursion_level - 1, vertical_distance_to_sub_arch, 
                                                         sub_arch_outer_offset, sub_arch_inner_offset)
         left_sub_arch_left_arc_center = arc_center(left_sub_arch.left_arc)
@@ -678,8 +704,8 @@ function three_dimensional_arch(bottom_left_corner, upper_right_corner, excess,
         rosette_center = rosette.rosette_center
         rosette_radius = rosette.rosette_radius
         three_dimensionalize_rosette(rosette_center, rosette_radius, rosette_radius * outer_offset_ratio, inner_offset)
-        rosette_rounded_foils(rosette_center, rosette_radius, 9, π/2, rosette_radius * inner_offset_ratio)
-        #rosette_pointed_foils(rosette_center, rosette_radius, 9, 2, π/2, rosette_radius * inner_offset_ratio)
+        #rosette_rounded_foils(rosette_center, rosette_radius, 9, π/2, rosette_radius * inner_offset_ratio)
+        rosette_pointed_foils(rosette_center, rosette_radius, 9, 2, π/2, rosette_radius * inner_offset_ratio)
 
         # Fillets
         circular_rosette_fillets(right_arc_center, left_arc_center, arcs_radius - outer_offset, 
@@ -690,10 +716,11 @@ function three_dimensional_arch(bottom_left_corner, upper_right_corner, excess,
 
     return (left_arc = arcs.left_arc, right_arc = arcs.right_arc)
 end
-# == MAIN ARCH == #
+# == GOTHIC WINDOWS == #
 
-#with(current_cs, cs_from_o_vz(u0(), vx())) do
-#    arch(xy(-10, -16), xy(10, 16), 1, 0.75, 0.75, 1, 3)
-#end
+# == GOTHIC PLAYGROUND == #
 
-three_dimensional_arch(xy(-10, -16), xy(10, 16), 1, 2, 3, 1, 1)
+delete_all_shapes()
+gothic_window(xy(-10, -16), xy(10, 16), 1, 2, 3, 1, 1)
+
+# == GOTHIC PLAYGROUND == #
