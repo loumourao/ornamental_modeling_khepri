@@ -23,6 +23,41 @@ function displace_point_by_vector(point, vector, magnitude)
 end
 
 # == CIRCLES == #
+function intersect_circles_ccw_intersection_order(m0, r0, m1, r1)
+    d = distance(m0, m1)
+
+    # d == 0 prevents the set of interesection points when both circles overlap
+    if d > r0 + r1 || d < abs(r0 - r1) || d == 0
+        return nothing
+    end
+
+    a = (r0^2 - r1^2 + d^2) / (2 * d)
+    p = m0 + a * (m1 - m0) / d
+    c = sqrt(r0^2 - a^2)
+    c_vector = m1 - m0
+    c_vector = vxy(-c_vector.y, c_vector.x)
+    c_vector = c_vector / norm(c_vector) * c
+
+    first_intersection_point = p + c_vector
+    second_intersection_point = p - c_vector
+
+    m0_to_first_intersection_point = first_intersection_point - m0
+    m0_to_second_intersection_point = second_intersection_point - m0
+
+    θ0 = atan(m0_to_first_intersection_point.y, m0_to_first_intersection_point.x)
+    θ1 = atan(m0_to_second_intersection_point.y, m0_to_second_intersection_point.x)
+
+    if θ0 <= θ1
+        ccw_first_intersection_point = first_intersection_point
+        ccw_second_intersection_point = second_intersection_point
+    else
+        ccw_first_intersection_point = second_intersection_point
+        ccw_second_intersection_point = first_intersection_point
+    end
+
+    return (ccw_first_intersection_point = ccw_first_intersection_point, ccw_second_intersection_point = ccw_second_intersection_point)
+end
+
 function intersect_circles(m0, r0, m1, r1)
     d = distance(m0, m1)
 
@@ -323,9 +358,9 @@ function circular_rosette_fillets(right_arc_center, left_arc_center, arcs_radius
                                         right_sub_arch_right_arc_center, right_sub_arch_left_arc_center, 
                                             left_sub_arch_left_arc_center, left_sub_arch_right_arc_center, sub_arcs_radius)
     # Right fillet points calculations
-    right_fillet_bottom_point = intersect_circles(right_arc_center, arcs_radius, right_sub_arch_right_arc_center, sub_arcs_radius).greater_y_intersection_point
-    right_fillet_top_point = intersect_circles(right_arc_center, arcs_radius, rosette_center, rosette_radius).lower_y_intersection_point
-    right_fillet_left_point = intersect_circles(right_sub_arch_right_arc_center, sub_arcs_radius, rosette_center, rosette_radius).greater_y_intersection_point
+    right_fillet_bottom_point = intersect_circles_ccw_intersection_order(right_arc_center, arcs_radius, right_sub_arch_right_arc_center, sub_arcs_radius).ccw_second_intersection_point
+    right_fillet_top_point = intersect_circles_ccw_intersection_order(right_arc_center, arcs_radius, rosette_center, rosette_radius).ccw_first_intersection_point
+    right_fillet_left_point = intersect_circles_ccw_intersection_order(right_sub_arch_right_arc_center, sub_arcs_radius, rosette_center, rosette_radius).ccw_first_intersection_point
 
     # Right fillet modeling
     right_fillet_right_arc = arc(right_arc_center, right_fillet_bottom_point, right_fillet_top_point)
@@ -333,9 +368,9 @@ function circular_rosette_fillets(right_arc_center, left_arc_center, arcs_radius
     right_fillet_bottom_arc = arc(right_sub_arch_right_arc_center, right_fillet_bottom_point, right_fillet_left_point)
 
     # Top fillet points calculations
-    top_fillet_right_point = intersect_circles(right_arc_center, arcs_radius, rosette_center, rosette_radius).greater_y_intersection_point
-    top_fillet_top_point = intersect_circles(left_arc_center, arcs_radius, right_arc_center, arcs_radius).greater_y_intersection_point
-    top_fillet_left_point = intersect_circles(left_arc_center, arcs_radius, rosette_center, rosette_radius).greater_y_intersection_point
+    top_fillet_right_point = intersect_circles_ccw_intersection_order(right_arc_center, arcs_radius, rosette_center, rosette_radius).ccw_second_intersection_point
+    top_fillet_top_point = intersect_circles_ccw_intersection_order(right_arc_center, arcs_radius, left_arc_center, arcs_radius).ccw_second_intersection_point
+    top_fillet_left_point = intersect_circles_ccw_intersection_order(left_arc_center, arcs_radius, rosette_center, rosette_radius).ccw_first_intersection_point
 
     # Top fillet modeling
     arc(right_arc_center, top_fillet_right_point, top_fillet_top_point)
@@ -363,9 +398,9 @@ function circular_rosette_fillets(right_arc_center, left_arc_center, arcs_radius
     #arc(left_sub_arch_left_arc_center, left_fillet_right_point, left_fillet_bottom_point)
 
     # Bottom fillet points calculations
-    bottom_fillet_right_point = intersect_circles(right_sub_arch_left_arc_center, sub_arcs_radius, rosette_center, rosette_radius).lower_y_intersection_point
-    bottom_fillet_left_point = intersect_circles(left_sub_arch_right_arc_center, sub_arcs_radius, rosette_center, rosette_radius).lower_y_intersection_point
-    bottom_fillet_bottom_point = intersect_circles(left_sub_arch_right_arc_center, sub_arcs_radius, right_sub_arch_left_arc_center, sub_arcs_radius).greater_y_intersection_point
+    bottom_fillet_right_point = intersect_circles_ccw_intersection_order(right_sub_arch_left_arc_center, sub_arcs_radius, rosette_center, rosette_radius).ccw_second_intersection_point
+    bottom_fillet_left_point = intersect_circles_ccw_intersection_order(left_sub_arch_right_arc_center, sub_arcs_radius, rosette_center, rosette_radius).ccw_first_intersection_point
+    bottom_fillet_bottom_point = intersect_circles_ccw_intersection_order(left_sub_arch_right_arc_center, sub_arcs_radius, right_sub_arch_left_arc_center, sub_arcs_radius).ccw_second_intersection_point
 
     # Bottom fillet modeling
     arc(right_sub_arch_left_arc_center, bottom_fillet_right_point, bottom_fillet_bottom_point)
@@ -704,8 +739,8 @@ function gothic_window(bottom_left_corner, upper_right_corner, excess,
         rosette_center = rosette.rosette_center
         rosette_radius = rosette.rosette_radius
         three_dimensionalize_rosette(rosette_center, rosette_radius, rosette_radius * outer_offset_ratio, inner_offset)
-        #rosette_rounded_foils(rosette_center, rosette_radius, 9, π/2, rosette_radius * inner_offset_ratio)
-        rosette_pointed_foils(rosette_center, rosette_radius, 9, 2, π/2, rosette_radius * inner_offset_ratio)
+        rosette_rounded_foils(rosette_center, rosette_radius, 9, π/2, rosette_radius * inner_offset_ratio)
+        #rosette_pointed_foils(rosette_center, rosette_radius, 9, 2, π/2, rosette_radius * inner_offset_ratio)
 
         # Fillets
         circular_rosette_fillets(right_arc_center, left_arc_center, arcs_radius - outer_offset, 
