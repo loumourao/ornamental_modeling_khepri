@@ -11,52 +11,65 @@ delete_all_shapes()
 #      S
 # where 'O' is the origin
 
-const NORTH = vy(1)
-const SOUTH = vy(-1)
-const WEST = vx(-1)
-const EAST = vx(1)
+# == INDEXES == #
+ROW_INDEX = 1
+COLUMN_INDEX = 2
+ORIENTATION_INDEX = 3
+# == INDEXES == #
 
-const BASIC_PILLAR_WIDTH = 1
-const BASIC_PILLAR_DEPTH = 1
+# == ORIENTATIONS == #
+NORTH = vy(1)
+SOUTH = vy(-1)
+WEST = vx(-1)
+EAST = vx(1)
+# == ORIENTATIONS == #
 
-const EQUIDISTANT_SECTIONS_LENGTH = 7.53
-const WEST_END_JUMP_LENGTH = EQUIDISTANT_SECTIONS_LENGTH + EQUIDISTANT_SECTIONS_LENGTH / 2
+# == BASIC PILLAR INFO == #
+BASIC_PILLAR_WIDTH = 1
+BASIC_PILLAR_DEPTH = 1
+BASIC_PILLAR_HEIGHT = 105
+# == BASIC PILLAR INFO == #
 
-const START_INDEX = 1
-const END_INDEX = -1
+# == MEASUREMENTS == #
+EQUIDISTANT_SECTIONS_LENGTH = 7.53
+WEST_END_JUMP_LENGTH = EQUIDISTANT_SECTIONS_LENGTH + EQUIDISTANT_SECTIONS_LENGTH / 2
+# == MEASUREMENTS == #
 
-const WEST_END_ROW_RANGE = range(3, 8)
-const WEST_END_COLUMN_RANGE = range(1, 3)
+# == COMPLEX PILLARS INFO == #
+UPPER_RIGHT_OUTER_CROSSING_BUTTRESS_INFO = (3, 12, EAST)
+UPPER_LEFT_OUTER_CROSSING_BUTTRESS_INFO = (3, 8, NORTH)
+LOWER_LEFT_OUTER_CROSSING_BUTTRESS_INFO = (9, 8, WEST)
+LOWER_RIGHT_OUTER_CROSSING_BUTTRESS_INFO = (9, 12, SOUTH)
+OUTER_CROSSING_BUTTRESSES_INFO = [UPPER_RIGHT_OUTER_CROSSING_BUTTRESS_INFO, UPPER_LEFT_OUTER_CROSSING_BUTTRESS_INFO,
+                                    LOWER_LEFT_OUTER_CROSSING_BUTTRESS_INFO, LOWER_RIGHT_OUTER_CROSSING_BUTTRESS_INFO]
 
-const AISLE_ROW_RANGE = range(3, 8)
-const AISLE_COLUMN_RANGE = range(4, 13)
-
-const UPPER_CROSSING_END_ROW_RANGE = range(1, 2)
-const LOWER_CROSSING_END_ROW_RANGE = range(9, 10)
-const CROSSING_ENDS_COLUMN_RANGE = range(8, 11)
-
-const AMBULATORY_ROW_RANGE = range(3, 8)
-const AMBULATORY_COLUMN_RANGE = range(14, 17)
+UPPER_RIGHT_CROSSING_PILLAR_INFO = (5, 11, EAST)
+UPPER_LEFT_CROSSING_PILLAR_INFO = (5, 9, WEST)
+LOWER_LEFT_CROSSING_PILLAR_INFO = (7, 9, WEST)
+LOWER_RIGHT_CROSSING_PILLAR_INFO = (7, 11, EAST)
+CROSSING_PILLARS_INFO = [UPPER_RIGHT_CROSSING_PILLAR_INFO, UPPER_LEFT_CROSSING_PILLAR_INFO, 
+                            LOWER_LEFT_CROSSING_PILLAR_INFO, LOWER_RIGHT_CROSSING_PILLAR_INFO]
+# == COMPLEX PILLARS INFO == #
 
 struct Pillar
     type
     row
     column
     center
+    orientation
     bottom_anchor
     top_anchor
-    orientation
     north_wall
     south_wall
     west_wall
     east_wall
 end
 
-function Pillar(type, row, column, center;
-                    bottom_anchor = nothing, top_anchor = nothing, orientation = nothing, 
+function Pillar(type, row, column, center, orientation;
+                    bottom_anchor = nothing, top_anchor = nothing, 
                         north_wall = nothing, south_wall = nothing, west_wall = nothing, east_wall = nothing)
-    return Pillar(type, row, column, center, 
-                    bottom_anchor, top_anchor, orientation, 
+    return Pillar(type, row, column, center, orientation, 
+                    bottom_anchor, top_anchor, 
                         north_wall, south_wall, west_wall, east_wall)
 end
 
@@ -72,7 +85,8 @@ function get_orientation_polar_angle(orientation)
 end
 
 # == MODELERS == #
-function basic_pillar(center, height)
+function basic_pillar(center; 
+                        height = BASIC_PILLAR_HEIGHT)
     half_width = BASIC_PILLAR_WIDTH / 2
     half_depth = BASIC_PILLAR_DEPTH / 2
 
@@ -85,7 +99,8 @@ function basic_pillar(center, height)
     return sweep(pillar_path, pillar_shape)
 end
 
-function crossing_pillar(center, height)
+function crossing_pillar(center; 
+                            height = BASIC_PILLAR_HEIGHT * 1.15)
     three_quarters_width = BASIC_PILLAR_WIDTH * 0.75
     three_quarters_depth = BASIC_PILLAR_DEPTH * 0.75
 
@@ -131,7 +146,8 @@ function half_outer_crossing_buttress(center, height)
     return loft_ruled([pillar_base, pillar_pre_mid, pillar_mid, pillar_post_mid, pillar_top])
 end
 
-function outer_crossing_buttress(center, height, orientation)
+function outer_crossing_buttress(center, orientation; 
+                                    height = BASIC_PILLAR_HEIGHT * 0.95)
     orientation = get_orientation_polar_angle(orientation)
 
     quarter_width = BASIC_PILLAR_WIDTH / 4
@@ -140,7 +156,7 @@ function outer_crossing_buttress(center, height, orientation)
     quarter_depth = BASIC_PILLAR_DEPTH / 4
     three_quarters_depth = quarter_depth * 3
 
-    pillar = basic_pillar(center, height)
+    pillar = basic_pillar(center; height = height)
 
     transformation_point = center + vxy(quarter_width, quarter_depth)
     right_buttress = move(half_outer_crossing_buttress(center, height), vxy(three_quarters_width, three_quarters_depth))
@@ -151,7 +167,8 @@ function outer_crossing_buttress(center, height, orientation)
     return rotate(outer_crossing_buttress, orientation, center)
 end
 
-function aisle_inner_pillar(center, height, orientation)
+function aisle_inner_pillar(center, orientation; 
+                                height = BASIC_PILLAR_HEIGHT * 1.10)
     orientation = get_orientation_polar_angle(orientation)
 
     half_width = BASIC_PILLAR_WIDTH / 2
@@ -167,7 +184,8 @@ function aisle_inner_pillar(center, height, orientation)
     return rotate(aisle_inner_pillar, orientation, center)
 end
 
-function aisle_buttress(center, height, orientation)
+function aisle_buttress(center, orientation; 
+                            height = BASIC_PILLAR_HEIGHT * 0.95)
     orientation = get_orientation_polar_angle(orientation)
     half_height = height / 2
 
@@ -175,7 +193,7 @@ function aisle_buttress(center, height, orientation)
     half_width = BASIC_PILLAR_WIDTH / 2
     quintuple_depth = BASIC_PILLAR_DEPTH * 5
 
-    pillar = basic_pillar(center, height)
+    pillar = basic_pillar(center; height = height)
 
     base_bottom_left_corner = center - vx(BASIC_PILLAR_WIDTH)
     base_upper_right_corner = center + vxy(BASIC_PILLAR_WIDTH, quintuple_depth)
@@ -203,7 +221,8 @@ function aisle_buttress(center, height, orientation)
     return rotate(aisle_buttress, orientation, center)
 end 
 
-function ambulatory_inner_pillar(center, height, orientation)
+function ambulatory_inner_pillar(center, orientation; 
+                                    height = BASIC_PILLAR_HEIGHT * 1.10)
     orientation = get_orientation_polar_angle(orientation)
 
     third_width = BASIC_PILLAR_WIDTH / 3
@@ -224,7 +243,8 @@ function ambulatory_inner_pillar(center, height, orientation)
     return rotate(ambulatory_inner_pillar, orientation, center)
 end
 
-function ambulatory_outer_pillar(center, height, orientation)
+function ambulatory_outer_pillar(center, orientation; 
+                                    height = BASIC_PILLAR_HEIGHT)
     orientation = get_orientation_polar_angle(orientation)
 
     half_width = BASIC_PILLAR_WIDTH / 2
@@ -245,7 +265,8 @@ function ambulatory_outer_pillar(center, height, orientation)
     return rotate(ambulatory_inner_pillar, orientation, center)
 end
 
-function ambulatory_buttress(center, height, orientation)
+function ambulatory_buttress(center, orientation; 
+                                height = BASIC_PILLAR_HEIGHT * 0.64)
     orientation = get_orientation_polar_angle(orientation)
 
     half_width = BASIC_PILLAR_WIDTH / 2
@@ -271,20 +292,68 @@ end
 # == MODELERS == #
 
 # == INSTANTIATORS == #
-# == INSTANTIATORS == #
-# == PILLARS == #
-
 # Pillar instantiation for display purposes
-crossing_pillar(u0() - vxy(EQUIDISTANT_SECTIONS_LENGTH, EQUIDISTANT_SECTIONS_LENGTH * 2), 120)
-outer_crossing_buttress(u0(), 100, EAST)
-aisle_buttress(u0() + vx(EQUIDISTANT_SECTIONS_LENGTH * 2), 100, NORTH)
-basic_pillar(u0() + vx(EQUIDISTANT_SECTIONS_LENGTH * 2) - vy(EQUIDISTANT_SECTIONS_LENGTH), 105)
-aisle_inner_pillar(u0() + vx(EQUIDISTANT_SECTIONS_LENGTH * 2) - vy(EQUIDISTANT_SECTIONS_LENGTH * 2), 115, NORTH)
-ambulatory_buttress(u0() + vx(EQUIDISTANT_SECTIONS_LENGTH * 4), 66.7, NORTH)
-ambulatory_outer_pillar(u0() + vx(EQUIDISTANT_SECTIONS_LENGTH * 4) - vy(EQUIDISTANT_SECTIONS_LENGTH), 105, NORTH)
-ambulatory_inner_pillar(u0() + vx(EQUIDISTANT_SECTIONS_LENGTH * 4) - vy(EQUIDISTANT_SECTIONS_LENGTH * 2), 115, NORTH)
+#crossing_pillar(u0() - vxy(EQUIDISTANT_SECTIONS_LENGTH, EQUIDISTANT_SECTIONS_LENGTH * 2))
+#outer_crossing_buttress(u0(), EAST)
+#aisle_buttress(u0() + vx(EQUIDISTANT_SECTIONS_LENGTH * 2), NORTH)
+#basic_pillar(u0() + vx(EQUIDISTANT_SECTIONS_LENGTH * 2) - vy(EQUIDISTANT_SECTIONS_LENGTH))
+#aisle_inner_pillar(u0() + vx(EQUIDISTANT_SECTIONS_LENGTH * 2) - vy(EQUIDISTANT_SECTIONS_LENGTH * 2), NORTH)
+#ambulatory_buttress(u0() + vx(EQUIDISTANT_SECTIONS_LENGTH * 4), NORTH)
+#ambulatory_outer_pillar(u0() + vx(EQUIDISTANT_SECTIONS_LENGTH * 4) - vy(EQUIDISTANT_SECTIONS_LENGTH), NORTH)
+#ambulatory_inner_pillar(u0() + vx(EQUIDISTANT_SECTIONS_LENGTH * 4) - vy(EQUIDISTANT_SECTIONS_LENGTH * 2), NORTH)
 
-#pillars = Array{pillar}(nothing, 10, 17)
+pillars = Array{Union{Pillar, Nothing}}(nothing, 11, 18)
+
+function get_pillar_coordinates(row, column)
+
+    return xy(EQUIDISTANT_SECTIONS_LENGTH * (column - 1), 
+                EQUIDISTANT_SECTIONS_LENGTH * (-row + 1))
+end
+
+function instantiate_crossing_pillars(pillars)
+    for pillar_info in CROSSING_PILLARS_INFO
+        row = pillar_info[ROW_INDEX]
+        column = pillar_info[COLUMN_INDEX]
+        center = get_pillar_coordinates(row, column)
+        orientation = pillar_info[ORIENTATION_INDEX]
+        type = crossing_pillar(center)
+        
+        pillars[row, column] = Pillar(type, row, column, center, orientation)
+    end
+end
+
+function instantiate_outer_crossing_buttresses(pillars)
+    for pillar_info in OUTER_CROSSING_BUTTRESSES_INFO
+        row = pillar_info[ROW_INDEX]
+        column = pillar_info[COLUMN_INDEX]
+        center = get_pillar_coordinates(row, column)
+        orientation = pillar_info[ORIENTATION_INDEX]
+        type = outer_crossing_buttress(center, orientation)
+        
+        pillars[row, column] = Pillar(type, row, column, center, orientation)
+    end
+end
+
+function instantiate_aisle_buttresses(pillars)
+end
+
+instantiate_crossing_pillars(pillars)
+instantiate_outer_crossing_buttresses(pillars)
+
+#function get_pillar_orientation(row, column, section)
+#    if section == CROSSING_ENDS_ID
+#        return column in range(CROSSING_ENDS_COLUMN_RANGE[START_INDEX], CROSSING_ENDS_COLUMN_RANGE[])
+#    end
+#end
+#
+#function instantiate_crossing_ends(pillars)
+#    for row = LOWER_CROSSING_END_ROW_RANGE
+#        for column = CROSSING_ENDS_COLUMN_RANGE
+#            center = get_pillar_coordinates(row, center)
+#            aisle_buttress(center, 100, )
+#        end
+#    end
+#end
 #
 #function instantiate_west_end(pillars)
 #end
@@ -297,17 +366,7 @@ ambulatory_inner_pillar(u0() + vx(EQUIDISTANT_SECTIONS_LENGTH * 4) - vy(EQUIDIST
 #    return pillars
 #end
 #
-#function instantiate_crossing_ends(pillars)
-#end
-#
 #function instantiate_ambulatory(pillars)
 #end
-#
-#function instantiate_pillars(pillars)
-#    pillars = instantiate_west_end(pillars)
-#    pillars = instantiate_aisle(pillars)
-#    pillars = instantiate_crossing_ends(pillars)
-#    pillars = instantiate_ambulatory(pillars)
-#
-#    return pillars
-#end
+# == INSTANTIATORS == #
+# == PILLARS == #
