@@ -18,12 +18,12 @@ ORIENTATION_INDEX = 3
 # == INDEXES == #
 
 # == DIRECTIONS == #
-NORTH = vy(1.0)
+NORTH = vy(1)
 SOUTH = -NORTH
-WEST = vx(-1.0)
+WEST = vx(-1)
 EAST = -WEST
 
-GROWING_HEIGHT_DIRECTION = vz(1.0)
+GROWING_HEIGHT_DIRECTION = vz(1)
 DECREASING_HEIGHT_DIRECTION = -GROWING_HEIGHT_DIRECTION
 # == DIRECTIONS == #
 
@@ -176,7 +176,25 @@ AMBULATORY_INNER_PILLARS_INFO = [N_AMBULATORY_INNER_PILLARS, S_AMBULATORY_INNER_
 # == PILLARS INFO == #
 
 # == WALLS INFO == #
+# == FLYING BUTTRESSES == #
+NW_FLYING_BUTTRESS_LEFT_PILLARS = (3, range(4, 8))
+NW_FLYING_BUTTRESS_RIGHT_PILLARS = (4, range(4, 8))
+NE_FLYING_BUTTRESS_LEFT_PILLARS = (3, range(11, 14))
+NE_FLYING_BUTTRESS_RIGHT_PILLARS = (4, range(11, 14))
+N_FLYING_BUTTRESSES_LEFT_ANCHOR_HEIGHT = AISLE_BUTTRESS_HEIGHT / 2 + AISLE_BUTTRESS_HEIGHT / 6
+N_FLYING_BUTTRESSES_RIGHT_ANCHOR_HEIGHT = AISLE_OUTER_PILLAR_HEIGHT / 2 + AISLE_OUTER_PILLAR_HEIGHT / 4
+
+SW_FLYING_BUTTRESS_LEFT_PILLARS = (7, range(4, 8))
+SW_FLYING_BUTTRESS_RIGHT_PILLARS = (8, range(4, 8))
+SE_FLYING_BUTTRESS_LEFT_PILLARS = (7, range(11, 14))
+SE_FLYING_BUTTRESS_RIGHT_PILLARS = (8, range(11, 14))
+S_FLYING_BUTTRESSES_LEFT_ANCHOR_HEIGHT = N_FLYING_BUTTRESSES_RIGHT_ANCHOR_HEIGHT
+S_FLYING_BUTTRESSES_RIGHT_ANCHOR_HEIGHT = N_FLYING_BUTTRESSES_LEFT_ANCHOR_HEIGHT
+# == FLYING BUTTRESSES == #
+
 # == MAIN HALLWAY WALLS == #
+MAIN_HALLWAYS_WALL_HEIGHT = AISLE_INNER_PILLAR_HEIGHT
+
 HORIZONTAL_HALLWAY_WALL_LEFT_PILLARS = (5, range(4, 14))
 HORIZONTAL_HALLWAY_WALL_RIGHT_PILLARS = (6, range(4, 14))
 HORIZONTAL_HALLWAY_WALLS_ORIENTATION = NORTH
@@ -185,6 +203,88 @@ VERTICAL_HALLWAY_WALL_LEFT_PILLARS = (range(1, 10), 9)
 VERTICAL_HALLWAY_WALL_RIGHT_PILLARS = (range(1, 10), 10)
 VERTICAL_HALLWAY_WALLS_ORIENTATION = EAST
 # == MAIN HALLWAY WALLS == #
+
+# == AISLE OUTER WALLS == #
+AISLE_OUTER_WALL_HEIGHT = AISLE_BUTTRESS_HEIGHT / 2
+
+NW_AISLE_OUTER_WALL_LEFT_PILLARS = (3, range(4, 8))
+NW_AISLE_OUTER_WALL_RIGHT_PILLARS = (4, range(4, 8))
+NE_AISLE_OUTER_WALL_LEFT_PILLARS = (3, range(11, 14))
+NE_AISLE_OUTER_WALL_RIGHT_PILLARS = (4, range(11, 14))
+N_AISLE_OUTER_WALLS_ORIENTATION = NORTH
+
+SW_AISLE_OUTER_WALL_LEFT_PILLARS = (7, range(4, 8))
+SW_AISLE_OUTER_WALL_RIGHT_PILLARS = (8, range(4, 8))
+SE_AISLE_OUTER_WALL_LEFT_PILLARS = (7, range(11, 14))
+SE_AISLE_OUTER_WALL_RIGHT_PILLARS = (8, range(11, 14))
+S_AISLE_OUTER_WALLS_ORIENTATION = SOUTH
+# == AISLE OUTER WALLS == #
+
+# == AISLE MIDDLE WALLS == #
+AISLE_MIDDLE_WALL_HEIGHT = AISLE_OUTER_WALL_HEIGHT
+
+NW_AISLE_MIDDLE_WALL_LEFT_PILLARS = (4, range(4, 8))
+NW_AISLE_MIDDLE_WALL_RIGHT_PILLARS = (4, range(5, 9))
+NW_AISLE_MIDDLE_WALLS_ORIENTATION = WEST
+
+NE_AISLE_MIDDLE_WALL_LEFT_PILLARS = (4, range(10, 13))
+NE_AISLE_MIDDLE_WALL_RIGHT_PILLARS = (4, range(11, 14))
+NE_AISLE_MIDDLE_WALLS_ORIENTATION = EAST
+
+SW_AISLE_MIDDLE_WALL_LEFT_PILLARS = (7, range(4, 8))
+SW_AISLE_MIDDLE_WALL_RIGHT_PILLARS = (7, range(5, 9))
+SW_AISLE_MIDDLE_WALLS_ORIENTATION = WEST
+
+SE_AISLE_MIDDLE_WALL_LEFT_PILLARS = (7, range(10, 13))
+SE_AISLE_MIDDLE_WALL_RIGHT_PILLARS = (7, range(11, 14))
+SE_AISLE_MIDDLE_WALLS_ORIENTATION = EAST
+# == AISLE MIDDLE WALLS == #
+
+# == AISLE INNER WALLS == #
+AISLE_INNER_WALL_HEIGHT = AISLE_OUTER_WALL_HEIGHT
+
+NW_AISLE_INNER_WALL_LEFT_PILLARS = (4, range(4, 8))
+NW_AISLE_INNER_WALL_RIGHT_PILLARS = (5, range(4, 8))
+NE_AISLE_INNER_WALL_LEFT_PILLARS = (4, range(11, 14))
+NE_AISLE_INNER_WALL_RIGHT_PILLARS = (5, range(11, 14))
+N_AISLE_INNER_WALLS_ORIENTATION = NORTH
+
+SW_AISLE_INNER_WALL_LEFT_PILLARS = (6, range(4, 8))
+SW_AISLE_INNER_WALL_RIGHT_PILLARS = (7, range(4, 8))
+SE_AISLE_INNER_WALL_LEFT_PILLARS = (6, range(11, 14))
+SE_AISLE_INNER_WALL_RIGHT_PILLARS = (7, range(11, 14))
+S_AISLE_INNER_WALLS_ORIENTATION = SOUTH
+# == AISLE INNER WALLS == #
+
+# == TRANSEPT OUTER WALLS == #
+TRANSEPT_OUTER_WALL_HEIGHT = AISLE_OUTER_WALL_HEIGHT
+
+WN_TRANSEPT_OUTER_WALL_LEFT_PILLARS = (range(1, 3), 8)
+WN_TRANSEPT_OUTER_WALL_RIGHT_PILLARS = (range(1, 3), 9)
+WN_TRANSEPT_OUTER_WALLS_ORIENTATION = WEST
+
+EN_TRANSEPT_OUTER_WALL_LEFT_PILLARS = (range(1, 3), 10)
+EN_TRANSEPT_OUTER_WALL_RIGHT_PILLARS = (range(1, 3), 11)
+EN_TRANSEPT_OUTER_WALLS_ORIENTATION = EAST
+
+WS_TRANSEPT_OUTER_WALL_LEFT_PILLARS = (range(8, 10), 8)
+WS_TRANSEPT_OUTER_WALL_RIGHT_PILLARS = (range(8, 10), 9)
+WS_TRANSEPT_OUTER_WALLS_ORIENTATION = WEST
+
+ES_TRANSEPT_OUTER_WALL_LEFT_PILLARS = (range(8, 10), 10)
+ES_TRANSEPT_OUTER_WALL_RIGHT_PILLARS = (range(8, 10), 11)
+ES_TRANSEPT_OUTER_WALLS_ORIENTATION = EAST
+# == TRANSEPT OUTER WALLS == #
+
+# == AMBULATORY OUTER WALLS == #
+AMBULATORY_OUTER_WALL_HEIGHT = AISLE_OUTER_WALL_HEIGHT
+
+TOP_AMBULATORY_OUTER_WALL_LEFT_PILLARS = (4, range(14, 17))
+TOP_AMBULATORY_OUTER_WALL_RIGHT_PILLARS = (4, range(15, 18))
+
+BOTTOM_AMBULATORY_OUTER_WALL_LEFT_PILLARS = (7, range(14, 16))
+BOTTOM_AMBULATORY_OUTER_WALL_RIGHT_PILLARS = (7, range(15, 17))
+# == AMBULATORY OUTER WALLS == #
 # == WALLS INFO == #
 
 # == CATHEDRAL ASSETS DATA STRUCTURES == #
@@ -777,6 +877,26 @@ end
 # == UTILITIES == #
 
 # == MODELERS == #
+function flying_buttress(left_pillar, right_pillar, left_anchor_height, right_anchor_height;
+                            depth = get_pillar_depth(left_pillar))
+    half_depth = depth / 2
+    flying_buttress_anchors = get_wall_anchors(left_pillar, right_pillar)
+    left_anchor = flying_buttress_anchors.left_anchor + GROWING_HEIGHT_DIRECTION * left_anchor_height
+    right_anchor = flying_buttress_anchors.right_anchor + GROWING_HEIGHT_DIRECTION * right_anchor_height
+    flying_buttress_medial_line = line(left_anchor, right_anchor)
+
+    surface_top_half = extrusion(flying_buttress_medial_line, GROWING_HEIGHT_DIRECTION * depth * 4)
+    surface_bottom_half = extrusion(flying_buttress_medial_line, DECREASING_HEIGHT_DIRECTION * depth * 4)
+    surface_flying_buttress = union(surface_top_half, surface_bottom_half)
+
+    front_depth_direction = EAST
+    back_depth_direction = WEST
+    surface_depth_front_half = extrusion(surface_flying_buttress, front_depth_direction * half_depth)
+    surface_depth_back_half = extrusion(surface_flying_buttress, back_depth_direction * half_depth)
+    first_flying_buttress = union(surface_depth_front_half, surface_depth_back_half)
+    second_flying_buttress = move(deepcopy(first_flying_buttress), GROWING_HEIGHT_DIRECTION * depth * 16)
+end
+
 function standing_lancet_arch_top_block(center, width, depth, height, offset, orientation)
     orientation = get_orientation_polar_angle(orientation)
     half_width = (width - offset * 2) / 2
@@ -854,11 +974,7 @@ function standing_hollow_wall_block(center, width, depth, height, hole_height, o
     return subtraction(wall, hole)
 end
 
-function arch_wall(left_pillar, right_pillar, orientation;
-                        height = get_pillar_height(left_pillar),
-                        hole_height = height * 0.90,
-                        offset = 0,
-                        depth = get_pillar_depth(left_pillar))
+function standing_arch_wall_block(left_pillar, right_pillar, orientation, height, depth, hole_height, offset)
     wall_anchors = get_wall_anchors(left_pillar, right_pillar)
     left_anchor = wall_anchors.left_anchor
     right_anchor = wall_anchors.right_anchor
@@ -872,6 +988,84 @@ function arch_wall(left_pillar, right_pillar, orientation;
 
     return arch_wall
 end
+
+function standing_window_wall_block(left_pillar, right_pillar, orientation, height, depth, offset)
+    wall_anchors = get_wall_anchors(left_pillar, right_pillar)
+    left_anchor = wall_anchors.left_anchor
+    right_anchor = wall_anchors.right_anchor
+    wall_center = intermediate_loc(left_anchor, right_anchor)
+    width = distance(left_anchor, right_anchor)
+
+    wall = standing_wall_block(center, width, depth, height, orientation)
+
+    return wall
+end
+
+function main_hallway_arch(left_pillar, right_pillar, orientation;
+                                height = MAIN_HALLWAYS_WALL_HEIGHT,
+                                depth = get_pillar_depth(left_pillar),
+                                hole_height = height * 0.9,
+                                offset = 0)
+    standing_arch_wall_block(left_pillar, right_pillar, orientation, height, depth, hole_height, offset)
+end
+
+function aisle_outer_arch(left_pillar, right_pillar, orientation;
+                                height = AISLE_OUTER_WALL_HEIGHT,
+                                depth = get_pillar_depth(left_pillar),
+                                hole_height = height * 0.85,
+                                offset = 0)
+    standing_arch_wall_block(left_pillar, right_pillar, orientation, height, depth, hole_height, offset)
+end
+
+function aisle_middle_arch(left_pillar, right_pillar, orientation;
+                                height = AISLE_MIDDLE_WALL_HEIGHT,
+                                depth = get_pillar_depth(left_pillar),
+                                hole_height = height * 0.85,
+                                offset = 0)
+    standing_arch_wall_block(left_pillar, right_pillar, orientation, height, depth, hole_height, offset)
+end
+
+function aisle_inner_arch(left_pillar, right_pillar, orientation;
+                                height = AISLE_INNER_WALL_HEIGHT,
+                                depth = get_pillar_depth(left_pillar),
+                                hole_height = height * 0.85,
+                                offset = 0)
+    standing_arch_wall_block(left_pillar, right_pillar, orientation, height, depth, hole_height, offset)
+end
+
+function transept_outer_arch(left_pillar, right_pillar, orientation;
+                                height = TRANSEPT_OUTER_WALL_HEIGHT,
+                                depth = get_pillar_depth(left_pillar),
+                                hole_height = height * 0.85,
+                                offset = 0)
+    standing_arch_wall_block(left_pillar, right_pillar, orientation, height, depth, hole_height, offset)
+end
+
+function arch_and_window_wall(left_pillar, right_pillar, orientation;
+                                height = ARCH_AND_WINDOW_WALL_HEIGHT,
+                                depth = get_pillar_depth(left_pillar),
+                                offset = 0)
+    standing_window_wall_block(left_pillar, right_pillar, orientation, height, depth, offset)
+end
+
+function ambulatory_outer_arch(left_pillar, right_pillar, orientation;
+                                height = AMBULATORY_OUTER_WALL_HEIGHT,
+                                depth = AISLE_OUTER_PILLAR_DEPTH,
+                                hole_height = height * 0.85,
+                                offset = 0)
+    standing_arch_wall_block(left_pillar, right_pillar, orientation, height, depth, hole_height, offset)
+end
+# Wall types:
+# bottom arch
+# complete arch DONE
+# the 2 above can be combined into 1 function (height, depth, excess)
+# intermediate block
+# complete block
+# the 2 above can be combined into 1 function (height and depth)
+# bottom window
+# top window
+# the 2 above can be combined into 1 function
+# trapezoid block (outer to ambulatory buttress connection)
 # == MODELERS == #
 
 # == INSTANTIATORS == #
@@ -901,6 +1095,24 @@ function column_range_instantiator(pillars, wall_type_instantiator, column_range
     end
 end
 
+function right_pillar_increment_column_range_instantiator(pillars, wall_type_instantiator, column_range, left_pillars_row_index, right_pillars_row_index, orientation)
+    for column in column_range
+        left_pillar = pillars[left_pillars_row_index, column]
+        right_pillar = pillars[right_pillars_row_index, column + 1]
+        model = wall_type_instantiator(left_pillar, right_pillar, orientation)
+        wall_type = Wall(model, left_pillar, right_pillar)
+        set_pillars_wall_attributes(left_pillar, right_pillar, wall_type)
+    end
+end
+
+function flying_buttress_column_range_instantiator(pillars, column_range, left_pillars_row_index, right_pillars_row_index, left_anchor_height, right_anchor_height)
+    for column in column_range
+        left_pillar = pillars[left_pillars_row_index, column]
+        right_pillar = pillars[right_pillars_row_index, column]
+        flying_buttress(left_pillar, right_pillar, left_anchor_height, right_anchor_height)
+    end
+end
+
 function row_range_instantiator(pillars, wall_type_instantiator, row_range, left_pillars_column_index, right_pillars_column_index, orientation)
     for row in row_range
         left_pillar = pillars[row, left_pillars_column_index]
@@ -911,30 +1123,104 @@ function row_range_instantiator(pillars, wall_type_instantiator, row_range, left
     end
 end
 
-function instantiate_main_hallway_walls(pillars)
-    column_range_instantiator(pillars, arch_wall, HORIZONTAL_HALLWAY_WALL_LEFT_PILLARS[COLUMN_INDEX], 
+function instantiate_flying_buttresses(pillars)
+    flying_buttress_column_range_instantiator(pillars, NW_FLYING_BUTTRESS_LEFT_PILLARS[COLUMN_INDEX],
+                                                NW_FLYING_BUTTRESS_LEFT_PILLARS[ROW_INDEX], NW_FLYING_BUTTRESS_RIGHT_PILLARS[ROW_INDEX],
+                                                N_FLYING_BUTTRESSES_LEFT_ANCHOR_HEIGHT, N_FLYING_BUTTRESSES_RIGHT_ANCHOR_HEIGHT)
+    flying_buttress_column_range_instantiator(pillars, NE_FLYING_BUTTRESS_LEFT_PILLARS[COLUMN_INDEX],
+                                                NE_FLYING_BUTTRESS_LEFT_PILLARS[ROW_INDEX], NE_FLYING_BUTTRESS_RIGHT_PILLARS[ROW_INDEX],
+                                                N_FLYING_BUTTRESSES_LEFT_ANCHOR_HEIGHT, N_FLYING_BUTTRESSES_RIGHT_ANCHOR_HEIGHT)
+
+    flying_buttress_column_range_instantiator(pillars, SW_FLYING_BUTTRESS_LEFT_PILLARS[COLUMN_INDEX],
+                                                SW_FLYING_BUTTRESS_LEFT_PILLARS[ROW_INDEX], SW_FLYING_BUTTRESS_RIGHT_PILLARS[ROW_INDEX],
+                                                S_FLYING_BUTTRESSES_LEFT_ANCHOR_HEIGHT, S_FLYING_BUTTRESSES_RIGHT_ANCHOR_HEIGHT)
+    flying_buttress_column_range_instantiator(pillars, SE_FLYING_BUTTRESS_LEFT_PILLARS[COLUMN_INDEX],
+                                                SE_FLYING_BUTTRESS_LEFT_PILLARS[ROW_INDEX], SE_FLYING_BUTTRESS_RIGHT_PILLARS[ROW_INDEX],
+                                                S_FLYING_BUTTRESSES_LEFT_ANCHOR_HEIGHT, S_FLYING_BUTTRESSES_RIGHT_ANCHOR_HEIGHT)
+end
+
+function instantiate_main_hallways_walls(pillars)
+    column_range_instantiator(pillars, main_hallway_arch, HORIZONTAL_HALLWAY_WALL_LEFT_PILLARS[COLUMN_INDEX], 
                                 HORIZONTAL_HALLWAY_WALL_LEFT_PILLARS[ROW_INDEX], HORIZONTAL_HALLWAY_WALL_RIGHT_PILLARS[ROW_INDEX],
                                 HORIZONTAL_HALLWAY_WALLS_ORIENTATION)
-    row_range_instantiator(pillars, arch_wall, VERTICAL_HALLWAY_WALL_LEFT_PILLARS[ROW_INDEX], 
+    row_range_instantiator(pillars, main_hallway_arch, VERTICAL_HALLWAY_WALL_LEFT_PILLARS[ROW_INDEX], 
                                 VERTICAL_HALLWAY_WALL_LEFT_PILLARS[COLUMN_INDEX], VERTICAL_HALLWAY_WALL_RIGHT_PILLARS[COLUMN_INDEX],
                                 VERTICAL_HALLWAY_WALLS_ORIENTATION)
 end
 
+function instantiate_aisles_outer_walls(pillars)
+    column_range_instantiator(pillars, aisle_outer_arch, NW_AISLE_OUTER_WALL_LEFT_PILLARS[COLUMN_INDEX],
+                                NW_AISLE_OUTER_WALL_LEFT_PILLARS[ROW_INDEX], NW_AISLE_OUTER_WALL_RIGHT_PILLARS[ROW_INDEX],
+                                N_AISLE_OUTER_WALLS_ORIENTATION)
+    column_range_instantiator(pillars, aisle_outer_arch, NE_AISLE_OUTER_WALL_LEFT_PILLARS[COLUMN_INDEX],
+                                NE_AISLE_OUTER_WALL_LEFT_PILLARS[ROW_INDEX], NE_AISLE_OUTER_WALL_RIGHT_PILLARS[ROW_INDEX],
+                                N_AISLE_OUTER_WALLS_ORIENTATION)
+
+    column_range_instantiator(pillars, aisle_outer_arch, SW_AISLE_OUTER_WALL_LEFT_PILLARS[COLUMN_INDEX],
+                                SW_AISLE_OUTER_WALL_LEFT_PILLARS[ROW_INDEX], SW_AISLE_OUTER_WALL_RIGHT_PILLARS[ROW_INDEX],
+                                S_AISLE_OUTER_WALLS_ORIENTATION)
+    column_range_instantiator(pillars, aisle_outer_arch, SE_AISLE_OUTER_WALL_LEFT_PILLARS[COLUMN_INDEX],
+                                SE_AISLE_OUTER_WALL_LEFT_PILLARS[ROW_INDEX], SE_AISLE_OUTER_WALL_RIGHT_PILLARS[ROW_INDEX],
+                                S_AISLE_OUTER_WALLS_ORIENTATION)
+end
+
+function instantiate_aisles_middle_walls(pillars)
+    right_pillar_increment_column_range_instantiator(pillars, aisle_middle_arch, NW_AISLE_MIDDLE_WALL_LEFT_PILLARS[COLUMN_INDEX],
+                                                        NW_AISLE_MIDDLE_WALL_LEFT_PILLARS[ROW_INDEX], NW_AISLE_MIDDLE_WALL_RIGHT_PILLARS[ROW_INDEX],
+                                                        NW_AISLE_MIDDLE_WALLS_ORIENTATION)
+    right_pillar_increment_column_range_instantiator(pillars, aisle_middle_arch, NE_AISLE_MIDDLE_WALL_LEFT_PILLARS[COLUMN_INDEX],
+                                                        NE_AISLE_MIDDLE_WALL_LEFT_PILLARS[ROW_INDEX], NE_AISLE_MIDDLE_WALL_RIGHT_PILLARS[ROW_INDEX],
+                                                        NE_AISLE_MIDDLE_WALLS_ORIENTATION)
+
+    right_pillar_increment_column_range_instantiator(pillars, aisle_middle_arch, SW_AISLE_MIDDLE_WALL_LEFT_PILLARS[COLUMN_INDEX],
+                                                        SW_AISLE_MIDDLE_WALL_LEFT_PILLARS[ROW_INDEX], SW_AISLE_MIDDLE_WALL_RIGHT_PILLARS[ROW_INDEX],
+                                                        SW_AISLE_MIDDLE_WALLS_ORIENTATION)
+    right_pillar_increment_column_range_instantiator(pillars, aisle_middle_arch, SE_AISLE_MIDDLE_WALL_LEFT_PILLARS[COLUMN_INDEX],
+                                                        SE_AISLE_MIDDLE_WALL_LEFT_PILLARS[ROW_INDEX], SE_AISLE_MIDDLE_WALL_RIGHT_PILLARS[ROW_INDEX],
+                                                        SE_AISLE_MIDDLE_WALLS_ORIENTATION)  
+end
+
+function instantiate_aisles_inner_walls(pillars)
+    column_range_instantiator(pillars, aisle_inner_arch, NW_AISLE_INNER_WALL_LEFT_PILLARS[COLUMN_INDEX],
+                                NW_AISLE_INNER_WALL_LEFT_PILLARS[ROW_INDEX], NW_AISLE_INNER_WALL_RIGHT_PILLARS[ROW_INDEX],
+                                N_AISLE_INNER_WALLS_ORIENTATION)
+    column_range_instantiator(pillars, aisle_inner_arch, NE_AISLE_INNER_WALL_LEFT_PILLARS[COLUMN_INDEX],
+                                NE_AISLE_INNER_WALL_LEFT_PILLARS[ROW_INDEX], NE_AISLE_INNER_WALL_RIGHT_PILLARS[ROW_INDEX],
+                                N_AISLE_INNER_WALLS_ORIENTATION)
+
+    column_range_instantiator(pillars, aisle_inner_arch, SW_AISLE_INNER_WALL_LEFT_PILLARS[COLUMN_INDEX],
+                                SW_AISLE_INNER_WALL_LEFT_PILLARS[ROW_INDEX], SW_AISLE_INNER_WALL_RIGHT_PILLARS[ROW_INDEX],
+                                S_AISLE_INNER_WALLS_ORIENTATION)
+    column_range_instantiator(pillars, aisle_inner_arch, SE_AISLE_INNER_WALL_LEFT_PILLARS[COLUMN_INDEX],
+                                SE_AISLE_INNER_WALL_LEFT_PILLARS[ROW_INDEX], SE_AISLE_INNER_WALL_RIGHT_PILLARS[ROW_INDEX],
+                                S_AISLE_INNER_WALLS_ORIENTATION)
+end
+
+function instantiate_transept_outer_walls(pillars)
+    row_range_instantiator(pillars, transept_outer_arch, WN_TRANSEPT_OUTER_WALL_LEFT_PILLARS[ROW_INDEX],
+                                WN_TRANSEPT_OUTER_WALL_LEFT_PILLARS[COLUMN_INDEX], WN_TRANSEPT_OUTER_WALL_RIGHT_PILLARS[COLUMN_INDEX],
+                                WN_TRANSEPT_OUTER_WALLS_ORIENTATION)
+    row_range_instantiator(pillars, transept_outer_arch, EN_TRANSEPT_OUTER_WALL_LEFT_PILLARS[ROW_INDEX],
+                                EN_TRANSEPT_OUTER_WALL_LEFT_PILLARS[COLUMN_INDEX], EN_TRANSEPT_OUTER_WALL_RIGHT_PILLARS[COLUMN_INDEX],
+                                EN_TRANSEPT_OUTER_WALLS_ORIENTATION)
+
+    row_range_instantiator(pillars, transept_outer_arch, WS_TRANSEPT_OUTER_WALL_LEFT_PILLARS[ROW_INDEX],
+                                WS_TRANSEPT_OUTER_WALL_LEFT_PILLARS[COLUMN_INDEX], WS_TRANSEPT_OUTER_WALL_RIGHT_PILLARS[COLUMN_INDEX],
+                                WS_TRANSEPT_OUTER_WALLS_ORIENTATION)
+    row_range_instantiator(pillars, transept_outer_arch, ES_TRANSEPT_OUTER_WALL_LEFT_PILLARS[ROW_INDEX],
+                                ES_TRANSEPT_OUTER_WALL_LEFT_PILLARS[COLUMN_INDEX], ES_TRANSEPT_OUTER_WALL_RIGHT_PILLARS[COLUMN_INDEX],
+                                ES_TRANSEPT_OUTER_WALLS_ORIENTATION)
+end
+
 function instantiate_all_walls(pillars)
-    instantiate_main_hallway_walls(pillars)
+    instantiate_flying_buttresses(pillars)
+    instantiate_main_hallways_walls(pillars)
+    instantiate_aisles_outer_walls(pillars)
+    instantiate_aisles_middle_walls(pillars)
+    instantiate_aisles_inner_walls(pillars)
+    instantiate_transept_outer_walls(pillars)
 end
 # == INSTANTIATORS == #
-# Wall types:
-# bottom arch
-# complete arch DONE
-# the 2 above can be combined into 1 function (height, depth, excess)
-# intermediate block
-# complete block
-# the 2 above can be combined into 1 function (height and depth)
-# bottom window
-# top window
-# the 2 above can be combined into 1 function
-# trapezoid block (outer to ambulatory buttress connection)
 # == WALLS == #
 
 # == PLAYGROUND == #

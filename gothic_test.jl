@@ -663,9 +663,7 @@ end
 # == GOTHIC ORNAMENTAL GEOMETRY == #
 
 # == GOTHIC WINDOWS == #
-function gothic_window(bottom_left_corner, upper_right_corner, excess, 
-                                    recursion_level, vertical_distance_to_sub_arch, 
-                                        outer_offset, inner_offset)
+function gothic_window(bottom_left_corner, upper_right_corner, excess, recursion_level, vertical_distance_to_sub_arch, outer_offset, inner_offset)
     # Arch body auxiliary coordinates
     upper_left_corner = xy(bottom_left_corner.x, upper_right_corner.y)
     bottom_right_corner = xy(upper_right_corner.x, bottom_left_corner.y)
