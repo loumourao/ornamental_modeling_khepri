@@ -737,8 +737,8 @@ function gothic_window(bottom_left_corner, upper_right_corner, excess, recursion
         rosette_center = rosette.rosette_center
         rosette_radius = rosette.rosette_radius
         three_dimensionalize_rosette(rosette_center, rosette_radius, rosette_radius * outer_offset_ratio, inner_offset)
-        rosette_rounded_foils(rosette_center, rosette_radius, 9, π/2, rosette_radius * inner_offset_ratio)
-        #rosette_pointed_foils(rosette_center, rosette_radius, 9, 2, π/2, rosette_radius * inner_offset_ratio)
+        #rosette_rounded_foils(rosette_center, rosette_radius, 9, π/2, rosette_radius * inner_offset_ratio)
+        rosette_pointed_foils(rosette_center, rosette_radius, 9, 2, π/2, rosette_radius * inner_offset_ratio)
 
         # Fillets
         circular_rosette_fillets(right_arc_center, left_arc_center, arcs_radius - outer_offset, 
@@ -754,6 +754,6 @@ end
 # == GOTHIC PLAYGROUND == #
 
 delete_all_shapes()
-gothic_window(xy(-10, -16), xy(10, 16), 1, 2, 3, 1, 1)
+gothic_window(xy(-10, -16), xy(10, 16), 1, 3, 3, 1, 1)
 
 # == GOTHIC PLAYGROUND == #
