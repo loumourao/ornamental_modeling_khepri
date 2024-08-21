@@ -164,8 +164,8 @@ AMBULATORY_OUTER_PILLARS_INFO = [N_AMBULATORY_OUTER_PILLARS, S_AMBULATORY_OUTER_
 # == AMBULATORY OUTER PILLARS == #
 
 # == AMBULATORY INNER PILLARS == #
-AMBULATORY_INNER_PILLAR_WIDTH = 0
-AMBULATORY_INNER_PILLAR_DEPTH = 0
+AMBULATORY_INNER_PILLAR_WIDTH = AISLE_INNER_PILLAR_DEPTH
+AMBULATORY_INNER_PILLAR_DEPTH = AISLE_INNER_PILLAR_WIDTH
 AMBULATORY_INNER_PILLAR_HEIGHT = AISLE_INNER_PILLAR_HEIGHT
 
 N_AMBULATORY_INNER_PILLARS = (5, range(15, 17), nothing)
@@ -231,7 +231,7 @@ SE_AISLE_MIDDLE_WALL_RIGHT_PILLARS = (7, range(11, 14))
 # == AISLE MIDDLE WALLS == #
 
 # == AISLE INNER WALLS == #
-AISLE_INNER_WALL_HEIGHT = AISLE_OUTER_WALL_HEIGHT
+AISLE_INNER_WALL_HEIGHT = AISLE_MIDDLE_WALL_HEIGHT
 
 NW_AISLE_INNER_WALL_LEFT_PILLARS = (4, range(4, 8))
 NW_AISLE_INNER_WALL_RIGHT_PILLARS = (5, range(4, 8))
@@ -245,7 +245,7 @@ SE_AISLE_INNER_WALL_RIGHT_PILLARS = (7, range(11, 14))
 # == AISLE INNER WALLS == #
 
 # == TRANSEPT OUTER WALLS == #
-TRANSEPT_OUTER_WALL_HEIGHT = AISLE_OUTER_WALL_HEIGHT
+TRANSEPT_OUTER_WALL_HEIGHT = AISLE_INNER_WALL_HEIGHT
 
 WN_TRANSEPT_OUTER_WALL_LEFT_PILLARS = (range(1, 3), 8)
 WN_TRANSEPT_OUTER_WALL_RIGHT_PILLARS = (range(1, 3), 9)
@@ -259,14 +259,24 @@ ES_TRANSEPT_OUTER_WALL_RIGHT_PILLARS = (range(8, 10), 11)
 # == TRANSEPT OUTER WALLS == #
 
 # == AMBULATORY OUTER WALLS == #
-AMBULATORY_OUTER_WALL_HEIGHT = AISLE_OUTER_WALL_HEIGHT
+AMBULATORY_OUTER_WALL_HEIGHT = TRANSEPT_OUTER_WALL_HEIGHT
 
-TOP_AMBULATORY_OUTER_WALL_LEFT_PILLARS = (4, range(14, 17))
-TOP_AMBULATORY_OUTER_WALL_RIGHT_PILLARS = (4, range(15, 18))
+TOP_AMBULATORY_OUTER_WALL_LEFT_PILLARS = (4, range(14, 16))
+TOP_AMBULATORY_OUTER_WALL_RIGHT_PILLARS = (4, range(15, 17))
 
 BOTTOM_AMBULATORY_OUTER_WALL_LEFT_PILLARS = (7, range(14, 16))
 BOTTOM_AMBULATORY_OUTER_WALL_RIGHT_PILLARS = (7, range(15, 17))
 # == AMBULATORY OUTER WALLS == #
+
+# == AMBULATORY MIDDLE WALLS == #
+AMBULATORY_MIDDLE_WALL_HEIGHT = AMBULATORY_OUTER_WALL_HEIGHT
+
+TOP_AMBULATORY_MIDDLE_WALL_LEFT_PILLARS = (4, range(14, 17))
+TOP_AMBULATORY_MIDDLE_WALL_RIGHT_PILLARS = (5, range(14, 17))
+
+BOTTOM_AMBULATORY_MIDDLE_WALL_LEFT_PILLARS = (6, range(14, 17))
+BOTTOM_AMBULATORY_MIDDLE_WALL_RIGHT_PILLARS = (7, range(14, 17))
+# == AMBULATORY MIDDLE WALLS == #
 # == WALLS INFO == #
 
 # == CATHEDRAL ASSETS DATA STRUCTURES == #
@@ -283,11 +293,10 @@ mutable struct Pillar
     south_wall
     west_wall
     east_wall
-    ambulatory_oriented_wall
 end
 
 function Pillar(type, row, column, center, orientation, width, depth, height)
-    Pillar(type, row, column, center, orientation, width, depth, height, nothing, nothing, nothing, nothing, nothing)
+    Pillar(type, row, column, center, orientation, width, depth, height, nothing, nothing, nothing, nothing)
 end
 
 function get_pillar_center(pillar)
@@ -1005,18 +1014,6 @@ function standing_arch_wall_block(left_pillar, right_pillar, depth, height, exce
     return arch_wall
 end
 
-function standing_window_wall_block(left_pillar, right_pillar, orientation, height, depth, offset)
-    wall_anchors = get_wall_anchors(left_pillar, right_pillar)
-    left_anchor = wall_anchors.left_anchor
-    right_anchor = wall_anchors.right_anchor
-    wall_center = intermediate_loc(left_anchor, right_anchor)
-    width = distance(left_anchor, right_anchor)
-
-    wall = standing_wall_block(center, width, depth, height, orientation)
-
-    return wall
-end
-
 function main_hallway_arch(left_pillar, right_pillar;
                                 depth = get_pillar_depth(left_pillar),
                                 height = MAIN_HALLWAYS_WALL_HEIGHT,
@@ -1057,11 +1054,20 @@ function transept_outer_arch(left_pillar, right_pillar;
     standing_arch_wall_block(left_pillar, right_pillar, depth, height, excess, offset)
 end
 
-function arch_and_window_wall(left_pillar, right_pillar, orientation;
-                                height = ARCH_AND_WINDOW_WALL_HEIGHT,
+function ambulatory_outer_arch(left_pillar, right_pillar;
                                 depth = get_pillar_depth(left_pillar),
+                                height = AMBULATORY_OUTER_WALL_HEIGHT,
+                                excess = 1,
                                 offset = 0)
-    standing_window_wall_block(left_pillar, right_pillar, orientation, height, depth, offset)
+    standing_arch_wall_block(left_pillar, right_pillar, depth, height, excess, offset)
+end
+
+function ambulatory_middle_arch(left_pillar, right_pillar;
+                                    depth = get_pillar_depth(left_pillar),
+                                    height = AMBULATORY_MIDDLE_WALL_HEIGHT,
+                                    excess = 1,
+                                    offset = 0)
+    standing_arch_wall_block(left_pillar, right_pillar, depth, height, excess, offset)
 end
 
 #function ambulatory_outer_arch(left_pillar, right_pillar;
@@ -1088,14 +1094,20 @@ end
 # == MODELERS == #
 
 # == INSTANTIATORS == #
-function set_pillars_wall_attributes(left_pillar, right_pillar, wall)
+function set_pillars_wall_attributes(left_pillar, right_pillar, wall, wall_type_instantiator)
     left_pillar_center = get_pillar_center(left_pillar)
     right_pillar_center = get_pillar_center(right_pillar)
 
     direction = right_pillar_center - left_pillar_center
     normalized_direction = direction / norm(direction)
 
-    if isapprox(normalized_direction.x, SOUTH.x) && isapprox(normalized_direction.y, SOUTH.y)
+    if wall_type_instantiator === ambulatory_outer_arch
+        set_pillar_east_wall(left_pillar, wall)
+        set_pillar_west_wall(right_pillar, wall)
+    elseif wall_type_instantiator === ambulatory_middle_arch
+        set_pillar_north_wall(left_pillar, wall)
+        set_pillar_south_wall(right_pillar, wall)
+    elseif isapprox(normalized_direction.x, SOUTH.x) && isapprox(normalized_direction.y, SOUTH.y)
         set_pillar_south_wall(left_pillar, wall)
         set_pillar_north_wall(right_pillar, wall)
     elseif isapprox(normalized_direction.x, EAST.x) && isapprox(normalized_direction.y, EAST.y)
@@ -1110,7 +1122,7 @@ function column_range_instantiator(pillars, wall_type_instantiator, column_range
         right_pillar = pillars[right_pillars_row_index, column]
         model = wall_type_instantiator(left_pillar, right_pillar)
         wall_type = Wall(model, left_pillar, right_pillar)
-        set_pillars_wall_attributes(left_pillar, right_pillar, wall_type)
+        set_pillars_wall_attributes(left_pillar, right_pillar, wall_type, wall_type_instantiator)
     end
 end
 
@@ -1120,7 +1132,7 @@ function right_pillar_increment_column_range_instantiator(pillars, wall_type_ins
         right_pillar = pillars[right_pillars_row_index, column + 1]
         model = wall_type_instantiator(left_pillar, right_pillar)
         wall_type = Wall(model, left_pillar, right_pillar)
-        set_pillars_wall_attributes(left_pillar, right_pillar, wall_type)
+        set_pillars_wall_attributes(left_pillar, right_pillar, wall_type, wall_type_instantiator)
     end
 end
 
@@ -1138,7 +1150,7 @@ function row_range_instantiator(pillars, wall_type_instantiator, row_range, left
         right_pillar = pillars[row, right_pillars_column_index]
         model = wall_type_instantiator(left_pillar, right_pillar)
         wall_type = Wall(model, left_pillar, right_pillar)
-        set_pillars_wall_attributes(left_pillar, right_pillar, wall_type)
+        set_pillars_wall_attributes(left_pillar, right_pillar, wall_type, wall_type_instantiator)
     end
 end
 
@@ -1213,6 +1225,20 @@ function instantiate_transept_outer_walls(pillars)
                                 ES_TRANSEPT_OUTER_WALL_LEFT_PILLARS[COLUMN_INDEX], ES_TRANSEPT_OUTER_WALL_RIGHT_PILLARS[COLUMN_INDEX])
 end
 
+function instantiate_ambulatory_outer_walls(pillars)
+    right_pillar_increment_column_range_instantiator(pillars, ambulatory_outer_arch, TOP_AMBULATORY_OUTER_WALL_LEFT_PILLARS[COLUMN_INDEX],
+                                                        TOP_AMBULATORY_OUTER_WALL_LEFT_PILLARS[ROW_INDEX], TOP_AMBULATORY_OUTER_WALL_RIGHT_PILLARS[ROW_INDEX])
+    right_pillar_increment_column_range_instantiator(pillars, ambulatory_outer_arch, BOTTOM_AMBULATORY_OUTER_WALL_LEFT_PILLARS[COLUMN_INDEX],
+                                                        BOTTOM_AMBULATORY_OUTER_WALL_LEFT_PILLARS[ROW_INDEX], BOTTOM_AMBULATORY_OUTER_WALL_RIGHT_PILLARS[ROW_INDEX])
+end
+
+function instantiate_ambulatory_middle_walls(pillars)
+    column_range_instantiator(pillars, ambulatory_middle_arch, TOP_AMBULATORY_MIDDLE_WALL_LEFT_PILLARS[COLUMN_INDEX],
+                                TOP_AMBULATORY_MIDDLE_WALL_LEFT_PILLARS[ROW_INDEX], TOP_AMBULATORY_MIDDLE_WALL_RIGHT_PILLARS[ROW_INDEX])
+    column_range_instantiator(pillars, ambulatory_middle_arch, BOTTOM_AMBULATORY_MIDDLE_WALL_LEFT_PILLARS[COLUMN_INDEX],
+                                BOTTOM_AMBULATORY_MIDDLE_WALL_LEFT_PILLARS[ROW_INDEX], BOTTOM_AMBULATORY_MIDDLE_WALL_RIGHT_PILLARS[ROW_INDEX])
+end
+
 function instantiate_all_walls(pillars)
     instantiate_flying_buttresses(pillars)
     instantiate_main_hallways_walls(pillars)
@@ -1220,6 +1246,8 @@ function instantiate_all_walls(pillars)
     instantiate_aisles_middle_walls(pillars)
     instantiate_aisles_inner_walls(pillars)
     instantiate_transept_outer_walls(pillars)
+    instantiate_ambulatory_outer_walls(pillars)
+    instantiate_ambulatory_middle_walls(pillars)
 end
 # == INSTANTIATORS == #
 # == WALLS == #
