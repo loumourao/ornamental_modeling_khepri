@@ -1,6 +1,8 @@
 using KhepriAutoCAD
 delete_all_shapes()
 
+DEFAULT_PROFILE_RADIUS = 1
+
 # == GEOMETRY UTILITY FUNCTIONS == #
 function solve_quadratic(a, b, c)
     discriminant = b^2 - 4 * a * c
@@ -422,23 +424,26 @@ end
 # == GOTHIC ORNAMENTAL GEOMETRY == #
 # == SOLID ORNAMENTATIONS == #
 # == ARCHES == #
-function three_dimensionalize_arch_top(left_arc, right_arc, offset_value;
-                                            profile = surface_circle(u0(), offset_value / 2))
-    left_arc = offset_arc(left_arc, offset_value / 2)
-    right_arc = offset_arc(right_arc, offset_value / 2)
+function three_dimensionalize_arch_top(left_arc, right_arc, offset_value, profile)
+    half_offset = offset_value / 2
+    profile = surface(scale(profile, abs(half_offset) / DEFAULT_PROFILE_RADIUS, u0()))
+    left_arc = offset_arc(left_arc, half_offset)
+    right_arc = offset_arc(right_arc, half_offset)
 
     sweep(left_arc, profile)
     sweep(right_arc, profile)
 end
 
-function three_dimensionalize_arch_body(upper_left_corner, bottom_left_corner, bottom_right_corner, upper_right_corner, offset_value;
-                                            profile = surface_circle(x(offset_value / 2), offset_value / 2))
+function three_dimensionalize_arch_body(upper_left_corner, bottom_left_corner, bottom_right_corner, upper_right_corner, offset_value, profile)
+    half_offset = offset_value / 2
+    profile = surface(move(scale(profile, abs(half_offset) / DEFAULT_PROFILE_RADIUS, u0()), vx(half_offset)))
     arch_body = line(upper_left_corner, bottom_left_corner, bottom_right_corner, upper_right_corner)
     sweep(arch_body, profile)
 end
 
-function three_dimensionalize_arch_middle(bottom_left_corner, upper_right_corner, vertical_distance_to_sub_arch, offset_value;
-                                            profile = surface_circle(u0(), offset_value / 2))
+function three_dimensionalize_arch_middle(bottom_left_corner, upper_right_corner, vertical_distance_to_sub_arch, offset_value, profile)
+    half_offset = offset_value / 2
+    profile = surface(scale(profile, abs(half_offset) / DEFAULT_PROFILE_RADIUS, u0()))
     bottom_right_corner = xy(upper_right_corner.x, bottom_left_corner.y)
     bottom_midpoint = intermediate_loc(bottom_left_corner, bottom_right_corner)
 
@@ -453,15 +458,17 @@ end
 # == ARCHES == #
 
 # == ROSETTES == #
-function three_dimensionalize_rosette(rosette_center, rosette_radius, inner_offset; 
-                                            profile = surface_circle(u0(), inner_offset / 2))
-    rosette = circle(rosette_center, rosette_radius + inner_offset / 2)
+function three_dimensionalize_rosette(rosette_center, rosette_radius, offset_value, profile)
+    half_offset = offset_value / 2
+    profile = surface(scale(profile, half_offset / DEFAULT_PROFILE_RADIUS, u0()))
+    rosette = circle(rosette_center, rosette_radius + half_offset)
     sweep(rosette, profile)
 end
 
-function three_dimensionalize_rosette_rounded_foils(foil, connection, offset_value;
-                                                    profile = surface_circle(u0(), abs(offset_value) / 2))
-    foil = arc_bidirectionally_extended_uniform_offset(foil, offset_value / 2)
+function three_dimensionalize_rosette_rounded_foils(foil, connection, offset_value, profile)
+    half_offset = offset_value / 2
+    profile = surface(scale(profile, abs(half_offset) / DEFAULT_PROFILE_RADIUS, u0()))
+    foil = arc_bidirectionally_extended_uniform_offset(foil, half_offset)
     connection = nothing
     
     foil = sweep(foil, profile)
@@ -469,10 +476,11 @@ function three_dimensionalize_rosette_rounded_foils(foil, connection, offset_val
     return (foil = foil, connection = connection)
 end
 
-function three_dimensionalize_rosette_pointed_foils(foil_right_arc, foil_left_arc, connection, offset_value;
-                                                    profile = surface_circle(u0(), abs(offset_value) / 2))
-    foil_right_arc = arc_bidirectionally_extended_uniform_offset(foil_right_arc, offset_value / 2)
-    foil_left_arc = arc_bidirectionally_extended_uniform_offset(foil_left_arc, offset_value / 2)
+function three_dimensionalize_rosette_pointed_foils(foil_right_arc, foil_left_arc, connection, offset_value, profile)
+    half_offset = offset_value / 2
+    profile = surface(scale(profile, abs(half_offset) / DEFAULT_PROFILE_RADIUS, u0()))
+    foil_right_arc = arc_bidirectionally_extended_uniform_offset(foil_right_arc, half_offset)
+    foil_left_arc = arc_bidirectionally_extended_uniform_offset(foil_left_arc, half_offset)
     connection = nothing
 
     foil_right_arc = sweep(foil_right_arc, profile)
@@ -580,7 +588,7 @@ function get_rosette_pointed_foils_fillet(rosette_center, rosette_radius,
 end
 # == FILLETS == #
 
-function rosette_rounded_foils(rosette_center, rosette_radius, n_foils, orientation, inner_offset)
+function rosette_rounded_foils(rosette_center, rosette_radius, n_foils, orientation, inner_offset, profile)
     # Check if n_foils >= 1, otherwise raise an error
     Δα = 2π / n_foils
 
@@ -610,7 +618,7 @@ function rosette_rounded_foils(rosette_center, rosette_radius, n_foils, orientat
         #rotate(connection, current_rotation_angle, rosette_center)
 
         # 3D rosette rounded foils
-        three_dimensionalized_foil_and_connection = three_dimensionalize_rosette_rounded_foils(foil, connection, -inner_offset)
+        three_dimensionalized_foil_and_connection = three_dimensionalize_rosette_rounded_foils(foil, connection, -inner_offset, profile)
         rotate(three_dimensionalized_foil_and_connection.foil, current_rotation_angle, rosette_center)
         #rotate(three_dimensionalized_foil_and_connection.connection, current_rotation_angle, rosette_center)
 
@@ -619,7 +627,7 @@ function rosette_rounded_foils(rosette_center, rosette_radius, n_foils, orientat
     end
 end
 
-function rosette_pointed_foils(rosette_center, rosette_radius, n_foils, displacement_ratio, orientation, inner_offset)
+function rosette_pointed_foils(rosette_center, rosette_radius, n_foils, displacement_ratio, orientation, inner_offset, profile)
     # Check if n_foils >= 1 and if displacement_ratio > 1, otherwise raise an error
     Δα = 2π / n_foils
 
@@ -659,7 +667,7 @@ function rosette_pointed_foils(rosette_center, rosette_radius, n_foils, displace
 
         # 3D rosette pointed foils
         three_dimensionalized_foil_and_connection = three_dimensionalize_rosette_pointed_foils(outer_foil_right_arc, outer_foil_left_arc, 
-                                                                                                    connection, inner_offset)
+                                                                                                    connection, inner_offset, profile)
         scale(rotate(three_dimensionalized_foil_and_connection.foil_right_arc, current_rotation_angle, rosette_center), scaling_factor, rosette_center)
         scale(rotate(three_dimensionalized_foil_and_connection.foil_left_arc, current_rotation_angle, rosette_center), scaling_factor, rosette_center)
         #scale(rotate(three_dimensionalized_foil_and_connection.connection, current_rotation_angle, rosette_center), scaling_factor, rosette_center)
@@ -784,8 +792,8 @@ function gothic_window(window; three_dimensionality_enabled = true)
     inner_offset = get_window_inner_offset(window)
     profile = get_window_profile(window)
     rosette_style = get_window_rosette_style(window)
-    left_sub_arch_style = get_window_left_sub_arch_style(window)
-    right_sub_arch_style = get_window_right_sub_arch_style(window)
+    left_sub_arch_style = deepcopy(get_window_left_sub_arch_style(window))
+    right_sub_arch_style = deepcopy(get_window_right_sub_arch_style(window))
 
     # Arch body auxiliary coordinates
     upper_left_corner = xy(bottom_left_corner.x, upper_right_corner.y)
@@ -802,15 +810,15 @@ function gothic_window(window; three_dimensionality_enabled = true)
 
     # 3D Arch
     if three_dimensionality_enabled
-        three_dimensionalize_arch_top(arcs.left_arc, arcs.right_arc, outer_offset; profile = profile)
-        three_dimensionalize_arch_body(upper_left_corner, bottom_left_corner, bottom_right_corner, upper_right_corner, outer_offset; profile = profile)
+        three_dimensionalize_arch_top(arcs.left_arc, arcs.right_arc, outer_offset, profile)
+        three_dimensionalize_arch_body(upper_left_corner, bottom_left_corner, bottom_right_corner, upper_right_corner, outer_offset, profile)
     end
 
     # Sub-Arches
     if recursion_level > 0
         # 3D Arch continuation
         if three_dimensionality_enabled
-            three_dimensionalize_arch_middle(bottom_left_corner, upper_right_corner, vertical_distance_to_sub_arch, inner_offset)
+            three_dimensionalize_arch_middle(bottom_left_corner, upper_right_corner, vertical_distance_to_sub_arch, inner_offset, profile)
         end
 
         # Auxiliary calculations
@@ -840,19 +848,31 @@ function gothic_window(window; three_dimensionality_enabled = true)
                                                             outer_sub_arch_excess)
 
             # 3D outer arches
-            three_dimensionalize_arch_top(left_outer_sub_arch_top.left_arc, left_outer_sub_arch_top.right_arc, inner_offset)
-            three_dimensionalize_arch_top(right_outer_sub_arch_top.left_arc, right_outer_sub_arch_top.right_arc, inner_offset)
+            three_dimensionalize_arch_top(left_outer_sub_arch_top.left_arc, left_outer_sub_arch_top.right_arc, inner_offset, profile)
+            three_dimensionalize_arch_top(right_outer_sub_arch_top.left_arc, right_outer_sub_arch_top.right_arc, inner_offset, profile)
         end
 
+        # Left sub-arch style additions
+        set_window_bottom_left_corner(left_sub_arch_style, left_sub_arch_body.bottom_left_corner)
+        set_window_upper_right_corner(left_sub_arch_style, left_sub_arch_body.upper_right_corner)
+        set_window_excess(left_sub_arch_style, sub_arch_excess)
+        set_window_recursion_level(left_sub_arch_style, recursion_level - 1)
+        set_window_vertical_distance_to_sub_arch(left_sub_arch_style, vertical_distance_to_sub_arch)
+        set_window_outer_offset(left_sub_arch_style, sub_arch_outer_offset)
+        set_window_inner_offset(left_sub_arch_style, sub_arch_inner_offset)
+
+        # Right sub-arch style additions
+        set_window_bottom_left_corner(right_sub_arch_style, right_sub_arch_body.bottom_left_corner)
+        set_window_upper_right_corner(right_sub_arch_style, right_sub_arch_body.upper_right_corner)
+        set_window_excess(right_sub_arch_style, sub_arch_excess)
+        set_window_recursion_level(right_sub_arch_style, recursion_level - 1)
+        set_window_vertical_distance_to_sub_arch(right_sub_arch_style, vertical_distance_to_sub_arch)
+        set_window_outer_offset(right_sub_arch_style, sub_arch_outer_offset)
+        set_window_inner_offset(right_sub_arch_style, sub_arch_inner_offset)
+
         # Sub-arches
-        left_sub_arch = gothic_window(left_sub_arch_body.bottom_left_corner, left_sub_arch_body.upper_right_corner, sub_arch_excess, 
-                                            recursion_level - 1, vertical_distance_to_sub_arch, 
-                                                sub_arch_outer_offset, sub_arch_inner_offset; 
-                                                    three_dimensionality_enabled = three_dimensionality_enabled)
-        right_sub_arch = gothic_window(right_sub_arch_body.bottom_left_corner, right_sub_arch_body.upper_right_corner, sub_arch_excess, 
-                                            recursion_level - 1, vertical_distance_to_sub_arch, 
-                                                sub_arch_outer_offset, sub_arch_inner_offset;
-                                                    three_dimensionality_enabled = three_dimensionality_enabled)
+        left_sub_arch = gothic_window(left_sub_arch_style; three_dimensionality_enabled = three_dimensionality_enabled)
+        right_sub_arch = gothic_window(right_sub_arch_style; three_dimensionality_enabled = three_dimensionality_enabled)
 
         left_sub_arch_left_arc_center = arc_center(left_sub_arch.left_arc)
         left_sub_arch_right_arc_center = arc_center(left_sub_arch.right_arc)
@@ -868,12 +888,26 @@ function gothic_window(window; three_dimensionality_enabled = true)
                                         outer_offset, inner_offset)
         rosette_center = rosette.rosette_center
         rosette_radius = rosette.rosette_radius
+        rosette_profile = get_rosette_profile(rosette_style)
+        rosette_foil_instantiator = get_rosette_foil_instantiator(rosette_style)
 
         if three_dimensionality_enabled
-            three_dimensionalize_rosette(rosette_center, rosette_radius, inner_offset)
+            three_dimensionalize_rosette(rosette_center, rosette_radius, inner_offset, rosette_profile)
         end
-        rosette_rounded_foils(rosette_center, rosette_radius, 9, π/2, rosette_radius * inner_offset_ratio)
-        #rosette_pointed_foils(rosette_center, rosette_radius, 9, 2, π/2, rosette_radius * inner_offset_ratio)
+
+        if rosette_foil_instantiator === rosette_rounded_foils
+            rosette_n_foils = get_rosette_n_foils(rosette_style)
+            rosette_starting_foil_orientation = get_rosette_starting_foil_orientation(rosette_style)
+            rosette_foil_instantiator(rosette_center, rosette_radius, rosette_n_foils, 
+                                        rosette_starting_foil_orientation, rosette_radius * inner_offset_ratio, rosette_profile)
+        elseif rosette_foil_instantiator === rosette_pointed_foils
+            rosette_n_foils = get_rosette_n_foils(rosette_style)
+            rosette_starting_foil_orientation = get_rosette_starting_foil_orientation(rosette_style)
+            rosette_displacement_ratio = get_rosette_displacement_ratio(rosette_style)
+            rosette_foil_instantiator(rosette_center, rosette_radius, rosette_n_foils,
+                                        rosette_displacement_ratio, rosette_starting_foil_orientation, 
+                                            rosette_radius * inner_offset_ratio, rosette_profile)
+        end
 
         # Fillets
         circular_rosette_fillets(right_arc_center, left_arc_center, arcs_radius - outer_offset, 
@@ -884,10 +918,26 @@ function gothic_window(window; three_dimensionality_enabled = true)
 
     return (left_arc = arcs.left_arc, right_arc = arcs.right_arc)
 end
+
+function get_extruded_gothic_window_outline(window)
+    bottom_left_corner = get_window_bottom_left_corner(window)
+    upper_right_corner = get_window_upper_right_corner(window)
+    upper_left_corner = xy(bottom_left_corner.x, upper_right_corner.y)
+    bottom_right_corner = xy(upper_right_corner.x, bottom_left_corner.y)
+    depth = get_window_outer_offset(window)
+    excess = get_window_excess(window)
+
+    arch_top = standing_lancet_arch_top_block(upper_left_corner, upper_right_corner, depth, excess)
+    arch_body_first_half = extrude(surface(polygon(upper_left_corner, bottom_left_corner, bottom_right_corner, upper_right_corner)), GROWING_HEIGHT_DIRECTION * depth)
+    arch_body_second_half = extrude(surface(polygon(upper_left_corner, bottom_left_corner, bottom_right_corner, upper_right_corner)), DECREASING_HEIGHT_DIRECTION * depth)
+    arch = union(arch_top, arch_body_first_half, arch_body_second_half)
+
+    return arch
+end
 # == GOTHIC WINDOWS == #
 
 # == GOTHIC PLAYGROUND == #
-struct GothicWindow
+mutable struct GothicWindow
     bottom_left_corner
     upper_right_corner
     excess
@@ -946,22 +996,50 @@ function get_window_right_sub_arch_style(window)
     return window.right_sub_arch_style
 end
 
+function set_window_bottom_left_corner(window, bottom_left_corner)
+    window.bottom_left_corner = bottom_left_corner
+end
+
+function set_window_upper_right_corner(window, upper_right_corner)
+    window.upper_right_corner = upper_right_corner
+end
+
+function set_window_excess(window, excess)
+    window.excess = excess
+end
+
+function set_window_recursion_level(window, recursion_level)
+    window.recursion_level = recursion_level
+end
+
+function set_window_vertical_distance_to_sub_arch(window, vertical_distance_to_sub_arch)
+    window.vertical_distance_to_sub_arch = vertical_distance_to_sub_arch
+end
+
+function set_window_outer_offset(window, outer_offset)
+    window.outer_offset = outer_offset
+end
+
+function set_window_inner_offset(window, inner_offset)
+    window.inner_offset = inner_offset
+end
+
 function Gothic_Window(bottom_left_corner, upper_right_corner, 
                         excess, recursion_level, vertical_distance_to_sub_arch, 
                             outer_offset, inner_offset, profile, rosette_style,
                                 left_sub_arch_style, right_sub_arch_style)
-    main_arch = Gothic_Window(bottom_left_corner, upper_right_corner,
+    main_arch = GothicWindow(bottom_left_corner, upper_right_corner,
                                 excess, recursion_level, vertical_distance_to_sub_arch,
                                     outer_offset, inner_offset, profile, rosette_style,
                                         left_sub_arch_style, right_sub_arch_style)
     gothic_window(main_arch)
 end
 
-function SubGothicWindow(profile, rosette_style, left_sub_arch_style, right_sub_arch_style)
+function Sub_Gothic_Window(profile, rosette_style, left_sub_arch_style, right_sub_arch_style)
     return GothicWindow(nothing, nothing, nothing, nothing, nothing, nothing, nothing, profile, rosette_style, left_sub_arch_style, right_sub_arch_style)
 end
 
-struct Rosette
+mutable struct Rosette
     profile
     foils_instantiator
     n_foils
@@ -1009,12 +1087,8 @@ end
 #end
 
 # IMPORTANT - PROFILES MUST BE CENTERED IN THE ORIGIN AND SHOULD EITHER BE A CIRCLE OR A SHAPE INSCRIBED IN A CIRCLES
-# THE CIRCLE'S RADIUS DOESN'T MATTER AS IT WILL BE SCALED PROVIDED THE OUTER/INNER OFFSET AS IT PROPAGATES THROUGH THE MODELING PROCESS
-# TO EXEMPLIFY WE WILL RESORT TO 3 DIFFERENT PROFILES WITH EQUAL RADIUS - A CIRCLE AND TWO DIFFERENT KINDS OF STARS
-circle_profile = surface_circle(u0(), 1)
-quad_star_profile = union(surface_regular_polygon(4, u0(), 1, 0), surface_regular_polygon(4, u0(), 1, π/4))
-pentagon_star_profile = union(surface_regular_polygon(5, u0(), 1, 0), surface_regular_polygon(5, u0(), 5, π/5))
-
+# THE CIRCLE'S RADIUS SHOULD ALWAYS BE EQUAL TO 1 SINCE IT WILL BE SCALED PROVIDED THE OUTER/INNER OFFSET AS IT PROPAGATES THROUGH THE MODELING PROCESS
+# TO EXEMPLIFY WE WILL RESORT TO 3 DIFFERENT PROFILES - A CIRCLE AND TWO DIFFERENT KINDS OF STARS
 # A WINDOW'S STYLE IS DIVIDED INTO TWO FACTORS - ITS 3D SHAPE (I.E., THE MODEL'S GEOMETRIC OUTLINE) AND ITS SUB-FIELDS
 # THE MODEL'S 3D SHAPE IS MATERIALIZED VIA A 2D PROFILE THAT IS SWEPT ALONG THE MEDIAL LINE BETWEEN THE WINDOW'S BORDER, FILLETS AND SUB-ARCHES
 # SUCH IS DETERMINED BY ITS OUTER AND INNER OFFSETS
@@ -1028,17 +1102,82 @@ pentagon_star_profile = union(surface_regular_polygon(5, u0(), 1, 0), surface_re
 # 3RD STYLE - A MAIN ARCH (PENTAGON_STAR_PROFILE, POINTED 3-FOIL ROSETTE WITH CIRCLE_PROFILE, PI/2 ORIENTED, AND 2 DISPLACEMENT RATIO), 
 # LEFT SUB-ARCH (CIRCLE_PROFILE, ROUNDED 6-FOIL ROSETTE WITH QUAD_START_PROFILE 0 ORIENTED),
 # RIGHT SUB-ARCH (QUAD_STAR_PROFULE, POINTED 9-FOIL ROSETTE WITH CIRCLE_PROFILE, PI/4 ORIENTED, AND 3 DISPLACEMENT RATIO)
+# HOWEVER, THE EXPRESSIVENESS DOESN'T END HERE. WE CAN REFER TO DIFFERENT PARAMETERS WITH RESPECT TO THE WINDOWS' EXCESS, VERTICAL DISTANCE TO SUB ARCHES
+# AND OUTER AND INNER OFFSET! TO EACH OF THESE STYLES WE WILL APPLY DIFFERENT VALUES PERTAINING TO THESE FACTORS
 
-# 1ST STYLE
-function Gothic_Window_First_Style(profile)
-    rosette_style = Empty_Rosette_Style(profile)
-    left_sub_arch_style = Sub_Gothic_Window(profile, rosette_style, nothing, nothing)
-    right_sub_arch_style = Sub_Gothic_Window(profile, rosette_style, nothing, nothing)
-    main_arch = Gothic_Window(xy(-10, -16), xy(10, 16), 1, 2, 3, 1, 1, profile, rosette_style, left_sub_arch_style, right_sub_arch_style)
-    return main_arch
-end
+# == 1ST STYLE == #
+#function Gothic_Window_First_Style(profile, excess, recursion_level, vertical_distance_to_sub_arch, outer_offset, inner_offset)
+#    rosette_style = Empty_Rosette_Style(profile)
+#
+#    sub_sub_arches_style = Sub_Gothic_Window(profile, nothing, nothing, nothing)
+#
+#    sub_arches_style = Sub_Gothic_Window(profile, rosette_style, sub_sub_arches_style, sub_sub_arches_style)
+#
+#    main_arch = Gothic_Window(xy(-10, -16), xy(10, 16), excess, recursion_level, vertical_distance_to_sub_arch, 
+#                                outer_offset, inner_offset, profile, 
+#                                    rosette_style, sub_arches_style, sub_arches_style)
+#
+#    return main_arch
+#end
+#
+#circle_profile = surface_circle(u0(), DEFAULT_PROFILE_RADIUS)
+#first_style_window = Gothic_Window_First_Style(circle_profile, 1, 2, 3, 1, 1)
+# == 1ST STYLE == #
 
-first_style_window = Gothic_Window_First_Style(circle_profile)
+# == 2ND STYLE == #
+#function Gothic_Window_Second_Style(main_arch_profile, sub_arches_profile, excess, recursion_level, vertical_distance_to_sub_arch, outer_offset, inner_offset)
+#    main_arch_rosette_style = Rosette_Rounded_Style(main_arch_profile, 6, 0)
+#    sub_arches_rosette_style = Rosette_Pointed_Style(sub_arches_profile, 3, 0, 2)
+#
+#    sub_sub_arches_style = Sub_Gothic_Window(sub_arches_profile, nothing, nothing, nothing)
+#
+#    left_sub_arch_style = Sub_Gothic_Window(sub_arches_profile, sub_arches_rosette_style, sub_sub_arches_style, sub_sub_arches_style)
+#    right_sub_arch_style = Sub_Gothic_Window(sub_arches_profile, sub_arches_rosette_style, sub_sub_arches_style, sub_sub_arches_style)
+#
+#    main_arch = Gothic_Window(xy(-10, -16), xy(10, 16), excess, recursion_level, vertical_distance_to_sub_arch, 
+#                                outer_offset, inner_offset, main_arch_profile, main_arch_rosette_style, 
+#                                    left_sub_arch_style, right_sub_arch_style)
+#
+#    return main_arch
+#end
+#
+#circle_profile = surface_circle(u0(), DEFAULT_PROFILE_RADIUS)
+#quad_star_profile = union(surface(regular_polygon(4, u0(), DEFAULT_PROFILE_RADIUS, 0)), surface(regular_polygon(4, u0(), DEFAULT_PROFILE_RADIUS, π/4)))
+#Gothic_Window_Second_Style(circle_profile, quad_star_profile, 1, 2, 3, 1, 1)
+# == 2ND STYLE == #
+
+# 3RD STYLE - A MAIN ARCH (QUAD_STAR_PROFILE, POINTED 3-FOIL ROSETTE WITH CIRCLE_PROFILE, PI/2 ORIENTED, AND 2 DISPLACEMENT RATIO), 
+# LEFT SUB-ARCH (CIRCLE_PROFILE, ROUNDED 6-FOIL ROSETTE WITH SQUARE_PROFILE 0 ORIENTED),
+# RIGHT SUB-ARCH (SQUARE_PROFILE, POINTED 9-FOIL ROSETTE WITH CIRCLE_PROFILE, PI/4 ORIENTED, AND 5 DISPLACEMENT RATIO)
+# == 3RD STYLE == #
+#function Gothic_Window_Third_Style(main_arch_profile, left_sub_arch_profile, right_sub_arch_profile,
+#                                    main_rosette_profile, sub_left_rosette_profile, sub_right_rosette_profile,
+#                                        excess, recursion_level, vertical_distance_to_sub_arch,
+#                                            outer_offset, inner_offset)
+#    main_arch_rosette_style = Rosette_Pointed_Style(main_rosette_profile, 3, π/2, 2)
+#    sub_left_rosette_style = Rosette_Rounded_Style(sub_left_rosette_profile, 6, 0)
+#    sub_right_rosette_style = Rosette_Pointed_Style(sub_right_rosette_profile, 9, π/4, 5)
+#
+#    sub_sub_arches_style = Sub_Gothic_Window(main_arch_profile, nothing, nothing, nothing)
+#
+#    left_sub_arch_style = Sub_Gothic_Window(left_sub_arch_profile, sub_left_rosette_style, sub_sub_arches_style, sub_sub_arches_style)
+#    right_sub_arch_style = Sub_Gothic_Window(right_sub_arch_profile, sub_right_rosette_style, sub_sub_arches_style, sub_sub_arches_style)
+#
+#    main_arch = Gothic_Window(xy(-10, -16), xy(10, 16), excess, recursion_level, vertical_distance_to_sub_arch, 
+#                                outer_offset, inner_offset, main_arch_profile, main_arch_rosette_style, 
+#                                    left_sub_arch_style, right_sub_arch_style)
+#
+#    return main_arch
+#end
+#
+#circle_profile = surface_circle(u0(), DEFAULT_PROFILE_RADIUS)
+#quad_star_profile = union(surface(regular_polygon(4, u0(), DEFAULT_PROFILE_RADIUS, 0)), surface(regular_polygon(4, u0(), DEFAULT_PROFILE_RADIUS, π/4)))
+#square_profile = surface(regular_polygon(4, u0(), 1))
+#Gothic_Window_Third_Style(quad_star_profile, 
+#                            circle_profile, square_profile, 
+#                                circle_profile, square_profile, quad_star_profile,
+#                                    1, 2, 3, 1, 1)
+# == 3RD STYLE == #
 
 #gothic_window(xy(-10, -16), xy(10, 16), 1, 2, 3, 1, 1; three_dimensionality_enabled = false)
 #gothic_window(xy(-10, -16), xy(10, 16), 2, 3, 3, 1, 1; three_dimensionality_enabled = false)
