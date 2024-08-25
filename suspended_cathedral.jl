@@ -39,6 +39,70 @@ function get_perpendicular_to_vectors(v, w)
 end
 
 # == CIRCLES == #
+function intersect_circles_ccw_intersection_order(m0, r0, m1, r1)
+    d = distance(m0, m1)
+
+    # d == 0 prevents the set of interesection points when both circles overlap
+    if d > r0 + r1 || d < abs(r0 - r1) || d == 0
+        return nothing
+    end
+
+    a = (r0^2 - r1^2 + d^2) / (2 * d)
+    p = m0 + a * (m1 - m0) / d
+    c = sqrt(r0^2 - a^2)
+    c_vector = m1 - m0
+    c_vector = vxy(-c_vector.y, c_vector.x)
+    c_vector = c_vector / norm(c_vector) * c
+
+    first_intersection_point = p + c_vector
+    second_intersection_point = p - c_vector
+
+    m0_to_first_intersection_point = first_intersection_point - m0
+    m0_to_second_intersection_point = second_intersection_point - m0
+
+    θ0 = atan(m0_to_first_intersection_point.y, m0_to_first_intersection_point.x)
+    θ1 = atan(m0_to_second_intersection_point.y, m0_to_second_intersection_point.x)
+
+    if θ0 <= θ1
+        ccw_first_intersection_point = first_intersection_point
+        ccw_second_intersection_point = second_intersection_point
+    else
+        ccw_first_intersection_point = second_intersection_point
+        ccw_second_intersection_point = first_intersection_point
+    end
+
+    return (ccw_first_intersection_point = ccw_first_intersection_point, ccw_second_intersection_point = ccw_second_intersection_point)
+end
+
+function intersect_circles(m0, r0, m1, r1)
+    d = distance(m0, m1)
+
+    # d == 0 prevents the set of interesection points when both circles overlap
+    if d > r0 + r1 || d < abs(r0 - r1) || d == 0
+        return nothing
+    end
+
+    a = (r0^2 - r1^2 + d^2) / (2 * d)
+    p = m0 + a * (m1 - m0) / d
+    c = sqrt(r0^2 - a^2)
+    c_vector = m1 - m0
+    c_vector = vxy(-c_vector.y, c_vector.x)
+    c_vector = c_vector / norm(c_vector) * c
+
+    first_intersection_point = p + c_vector
+    second_intersection_point = p - c_vector
+
+    if first_intersection_point.y >= second_intersection_point.y
+        greater_y_intersection_point = first_intersection_point
+        lower_y_intersection_point = second_intersection_point
+    else
+        greater_y_intersection_point = second_intersection_point
+        lower_y_intersection_point = first_intersection_point
+    end
+
+    return (greater_y_intersection_point = greater_y_intersection_point, lower_y_intersection_point = lower_y_intersection_point)
+end
+
 function intersect_line_ellipse(p0, v, m, r)
     a = norm(v)^2
     b = 2 * dot((p0 - m), v)
@@ -105,6 +169,46 @@ function arc_end_point(arc)
     return center + vpol(radius, start_angle + amplitude)
 end
 
+function intersect_arcs(arc0, arc1)
+    m0 = arc_center(arc0)
+    r0 = arc_radius(arc0)
+    arc0_start_angle = arc_start_angle(arc0)
+    arc0_amplitude = arc_amplitude(arc0)
+
+    m1 = arc_center(arc1)
+    r1 = arc_radius(arc1)
+    arc1_start_angle = arc_start_angle(arc1)
+    arc1_amplitude = arc_amplitude(arc1)
+
+    circle_intersection_points = intersect_circles(m0, r0, m1, r1)
+
+    if isnothing(circle_intersection_points)
+        return nothing
+    end
+
+    valid_intersection_points = []
+
+    for intersection_point in circle_intersection_points
+        a = intersection_point - m0
+        a_θ = atan(a.y, a.x)
+        a_θ_amplitude = arc0_start_angle > a_θ ? 2π - arc0_start_angle + a_θ : a_θ - arc0_start_angle
+
+        b = intersection_point - m1
+        b_θ = atan(b.y, b.x)
+        b_θ_amplitude = arc1_start_angle > b_θ ? 2π - arc1_start_angle + b_θ : b_θ - arc1_start_angle
+
+        if a_θ_amplitude <= arc0_amplitude && b_θ_amplitude <= arc1_amplitude
+            push!(valid_intersection_points, intersection_point)
+        end
+    end
+
+    if isempty(valid_intersection_points)
+        return nothing
+    end
+
+    return length(valid_intersection_points) > 1 ? valid_intersection_points : valid_intersection_points[1]
+end
+
 function offset_arc(previous_arc, offset_value)
     center = arc_center(previous_arc)
     radius = arc_radius(previous_arc)
@@ -118,6 +222,63 @@ function offset_arc(previous_arc, offset_value)
     new_end_point = displace_point_by_vector(center, cb, new_radius)
 
     return arc(center, new_start_point, new_end_point)
+end
+
+function get_angular_adjustment_from_offset(arc, offset_value)
+    amplitude = arc_amplitude(arc)
+    radius = arc_radius(arc)
+
+    Δθ = amplitude / radius
+    tangential_offset = offset_value * sin(Δθ / 2)
+    angular_adjustment = tangential_offset / radius
+
+    return angular_adjustment
+end
+
+function arc_bidirectionally_extended_uniform_offset(arc, offset_value)
+    delete_shape(arc)
+    center = arc_center(arc)
+    radius = arc_radius(arc)
+    start_angle = arc_start_angle(arc)
+    amplitude = arc_amplitude(arc)
+
+    angular_adjustment = get_angular_adjustment_from_offset(arc, offset_value)
+
+    new_radius = radius - offset_value
+    new_start_angle = start_angle - angular_adjustment
+    new_amplitude = amplitude + angular_adjustment * 2
+
+    return KhepriAutoCAD.arc(center, new_radius, new_start_angle, new_amplitude)
+end
+
+function arc_amplitude_extended_offset(arc, offset_value)
+    delete_shape(arc)
+    center = arc_center(arc)
+    radius = arc_radius(arc)
+    start_angle = arc_start_angle(arc)
+    amplitude = arc_amplitude(arc)
+
+    angular_adjustment = get_angular_adjustment_from_offset(arc, offset_value) * 2
+
+    new_radius = radius - offset_value
+    new_start_angle = start_angle + angular_adjustment
+
+    return KhepriAutoCAD.arc(center, new_radius, new_start_angle, amplitude)
+end
+
+function arc_start_angle_extended_offset(arc, offset_value)
+    delete_shape(arc)
+    center = arc_center(arc)
+    radius = arc_radius(arc)
+    start_angle = arc_start_angle(arc)
+    amplitude = arc_amplitude(arc)
+
+    angular_adjustment = get_angular_adjustment_from_offset(arc, offset_value) * 2
+
+    new_radius = radius - offset_value
+    new_start_angle = start_angle - angular_adjustment
+
+    return KhepriAutoCAD.arc(center, new_radius, new_start_angle, amplitude)
 end
 # == ARCS == #
 # == CIRCLES == #
@@ -233,6 +394,71 @@ function compute_rosette(bottom_left_corner, upper_right_corner,
     return (rosette_center = rosette_center, rosette_radius = rosette_radius)
 end
 # == ROSETTES == #
+
+# == FILLETS == #
+function circular_rosette_fillets(right_arc_center, left_arc_center, arcs_radius,
+                                    rosette_center, rosette_radius, 
+                                        right_sub_arch_right_arc_center, right_sub_arch_left_arc_center, 
+                                            left_sub_arch_left_arc_center, left_sub_arch_right_arc_center, sub_arcs_radius)
+    # Circles intersections
+    left_arc_and_right_arc_intersection = intersect_circles(left_arc_center, arcs_radius, right_arc_center, arcs_radius)
+    top_fillet_top_point = left_arc_and_right_arc_intersection.greater_y_intersection_point
+
+    left_arc_and_rosette_intersection = intersect_circles(left_arc_center, arcs_radius, rosette_center, rosette_radius)
+    left_fillet_top_point = left_arc_and_rosette_intersection.lower_y_intersection_point
+    top_fillet_left_point = left_arc_and_rosette_intersection.greater_y_intersection_point
+
+    right_arc_and_rosette_intersection = intersect_circles(right_arc_center, arcs_radius, rosette_center, rosette_radius)
+    right_fillet_top_point = right_arc_and_rosette_intersection.lower_y_intersection_point
+    top_fillet_right_point = right_arc_and_rosette_intersection.greater_y_intersection_point
+
+    left_arc_and_left_sub_arch_left_arc_intersection = intersect_circles(left_arc_center, arcs_radius, left_sub_arch_left_arc_center, sub_arcs_radius)
+    left_fillet_bottom_point = left_arc_and_left_sub_arch_left_arc_intersection.greater_y_intersection_point
+
+    right_arc_and_right_sub_arch_right_arc_intersection = intersect_circles(right_arc_center, arcs_radius, right_sub_arch_right_arc_center, sub_arcs_radius)
+    right_fillet_bottom_point = right_arc_and_right_sub_arch_right_arc_intersection.greater_y_intersection_point
+
+    left_sub_arch_left_arc_and_rosette_intersection = intersect_circles_ccw_intersection_order(left_sub_arch_left_arc_center, sub_arcs_radius,
+                                                                                                rosette_center, rosette_radius)
+    left_fillet_right_point = left_sub_arch_left_arc_and_rosette_intersection.ccw_second_intersection_point
+
+    right_sub_arch_right_arc_and_rosette_intersection = intersect_circles_ccw_intersection_order(right_sub_arch_right_arc_center, sub_arcs_radius,
+                                                                                                    rosette_center, rosette_radius)
+    right_fillet_left_point = right_sub_arch_right_arc_and_rosette_intersection.ccw_first_intersection_point
+
+    left_sub_arch_right_arc_and_rosette_intersection = intersect_circles(left_sub_arch_right_arc_center, sub_arcs_radius,
+                                                                            rosette_center, rosette_radius)
+    bottom_fillet_left_point = left_sub_arch_right_arc_and_rosette_intersection.lower_y_intersection_point
+
+    right_sub_arch_left_arc_and_rosette_intersection = intersect_circles(right_sub_arch_left_arc_center, sub_arcs_radius,
+                                                                            rosette_center, rosette_radius)
+    bottom_fillet_right_point = right_sub_arch_left_arc_and_rosette_intersection.lower_y_intersection_point
+
+    left_sub_arch_right_arc_and_right_sub_arch_left_arc_intersection = intersect_circles(left_sub_arch_right_arc_center, sub_arcs_radius,
+                                                                                            right_sub_arch_left_arc_center, sub_arcs_radius)
+    bottom_fillet_bottom_point = left_sub_arch_right_arc_and_right_sub_arch_left_arc_intersection.greater_y_intersection_point
+
+    # Top fillet modeling
+    arc(right_arc_center, top_fillet_right_point, top_fillet_top_point)
+    arc(left_arc_center, top_fillet_top_point, top_fillet_left_point)
+    arc(rosette_center, top_fillet_right_point, top_fillet_left_point)
+
+    # Left fillet modeling
+    arc(rosette_center, left_fillet_top_point, left_fillet_right_point)
+    arc(left_arc_center, left_fillet_top_point, left_fillet_bottom_point)
+    arc(left_sub_arch_left_arc_center, left_fillet_right_point, left_fillet_bottom_point)
+
+    # Right fillet modeling
+    arc(right_arc_center, right_fillet_bottom_point, right_fillet_top_point)
+    arc(rosette_center, right_fillet_left_point, right_fillet_top_point)
+    arc(right_sub_arch_right_arc_center, right_fillet_bottom_point, right_fillet_left_point)
+
+    # Bottom fillet modeling
+    arc(right_sub_arch_left_arc_center, bottom_fillet_right_point, bottom_fillet_bottom_point)
+    arc(rosette_center, bottom_fillet_left_point, bottom_fillet_right_point)
+    arc(left_sub_arch_right_arc_center, bottom_fillet_bottom_point, bottom_fillet_left_point)
+end
+# == FILLETS == #
 # == GOTHIC STRUCTURAL GEOMETRY == #
 
 # == GOTHIC ORNAMENTAL GEOMETRY == #
@@ -284,28 +510,28 @@ function three_dimensionalize_rosette(rosette_center, rosette_radius, offset_val
     return sweep(rosette, profile)
 end
 
-function three_dimensionalize_rosette_rounded_foils(foil, offset_value, profile)
+function three_dimensionalize_rosette_rounded_foils(foil, connection, offset_value, profile)
     half_offset = offset_value / 2
     profile = surface(scale(profile, abs(half_offset) / DEFAULT_PROFILE_RADIUS, u0()))
-    foil = offset_arc(foil, half_offset)
-    delete_shape(foil)
-
+    foil = arc_bidirectionally_extended_uniform_offset(foil, half_offset)
+    connection = nothing
+    
     foil = sweep(foil, profile)
 
-    return foil
+    return (foil = foil, connection = connection)
 end
 
-function three_dimensionalize_rosette_pointed_foils(foil_right_arc, foil_left_arc, offset_value, profile)
+function three_dimensionalize_rosette_pointed_foils(foil_right_arc, foil_left_arc, connection, offset_value, profile)
     half_offset = offset_value / 2
     profile = surface(scale(profile, abs(half_offset) / DEFAULT_PROFILE_RADIUS, u0()))
-    foil_right_arc = offset_arc(foil_right_arc, half_offset)
-    foil_left_arc = offset_arc(foil_left_arc, half_offset)
-    delete_shapes([foil_right_arc, foil_left_arc])
+    foil_right_arc = arc_bidirectionally_extended_uniform_offset(foil_right_arc, half_offset)
+    foil_left_arc = arc_bidirectionally_extended_uniform_offset(foil_left_arc, half_offset)
+    connection = nothing
 
     foil_right_arc = sweep(foil_right_arc, profile)
     foil_left_arc = sweep(foil_left_arc, profile)
 
-    return (foil_right_arc = foil_right_arc, foil_left_arc = foil_left_arc)
+    return (foil_right_arc = foil_right_arc, foil_left_arc = foil_left_arc, connection = connection)
 end
 # == ROSETTES == #
 # == SOLID ORNAMENTATIONS == #
@@ -346,60 +572,154 @@ function get_pointed_foil(rosette_center, rosette_radius, Δα, displacement_rat
 
     pointed_foil_right_arc = arc(pointed_foil_right_arc_center, rounded_foil_start_point, arc_intersection) 
     pointed_foil_left_arc = arc(pointed_foil_left_arc_center, arc_intersection, rounded_foil_end_point)
-    delete_shapes([pointed_foil_right_arc, pointed_foil_left_arc])
 
     return (right_arc = pointed_foil_right_arc, left_arc = pointed_foil_left_arc, rounded_foil_center = rounded_foil_center)
 end
 
-function rosette_rounded_foils(rosette_center, rosette_radius, n_foils, orientation, inner_offset, profile)
-    three_dimensional_rounded_foils = []
+# == FILLETS == #
+function get_rosette_rounded_foils_fillet(rosette_center, rosette_radius, 
+                                                    foil_center, foil_radius, 
+                                                        Δα, inner_offset)
+    rosette_radius = rosette_radius - inner_offset
+    rosette_center_to_foil_center_length = distance(rosette_center, foil_center)
 
+    fillet_right_arc_center = rosette_center + vpol(rosette_center_to_foil_center_length, 0)
+    fillet_upper_arc_center = rosette_center
+    fillet_left_arc_center = rosette_center + vpol(rosette_center_to_foil_center_length, Δα)
+
+    displacement_vector = fillet_left_arc_center - fillet_right_arc_center
+
+    fillet_right_point = intersect_circles(rosette_center, rosette_radius, fillet_right_arc_center, foil_radius).greater_y_intersection_point
+    fillet_left_point = intersect_circles(rosette_center, rosette_radius, fillet_left_arc_center, foil_radius).lower_y_intersection_point
+    fillet_bottom_point = displace_point_by_vector(fillet_right_arc_center, displacement_vector, norm(displacement_vector) / 2)
+
+    fillet_right_arc = arc(fillet_right_arc_center, fillet_right_point, fillet_bottom_point)
+    fillet_upper_arc = arc(fillet_upper_arc_center, fillet_right_point, fillet_left_point)
+    fillet_left_arc = arc(fillet_left_arc_center, fillet_bottom_point, fillet_left_point)
+
+    return (right_arc = fillet_right_arc, upper_arc = fillet_upper_arc, left_arc = fillet_left_arc)
+end
+
+function get_rosette_pointed_foils_fillet(rosette_center, rosette_radius, 
+                                                    foil_center, right_arc_center, foil_radius, 
+                                                        Δα, scaling_factor, inner_offset)
+    scaling_factor = 1 / scaling_factor
+    rosette_radius = rosette_radius * scaling_factor - inner_offset
+
+    rosette_center_to_foil_center_vector = foil_center - rosette_center
+    rosette_center_to_foil_arc_center_vector = right_arc_center - rosette_center
+    rosette_center_to_foil_center_length = norm(rosette_center_to_foil_center_vector)
+    rosette_center_to_foil_arc_center_length = norm(rosette_center_to_foil_arc_center_vector)
+    Δβ = angle_between(rosette_center_to_foil_center_vector, rosette_center_to_foil_arc_center_vector)
+
+    right_foil_center = rosette_center + vpol(rosette_center_to_foil_center_length, 0)
+    left_foil_center = rosette_center + vpol(rosette_center_to_foil_center_length, Δα)
+
+    fillet_right_arc_center = rosette_center + vpol(rosette_center_to_foil_arc_center_length, -Δβ)
+    fillet_upper_arc_center = rosette_center
+    fillet_left_arc_center = rosette_center + vpol(rosette_center_to_foil_arc_center_length, Δα + Δβ)
+
+    displacement_vector = left_foil_center - right_foil_center
+
+    fillet_right_point = intersect_circles(rosette_center, rosette_radius, fillet_right_arc_center, foil_radius).greater_y_intersection_point
+    fillet_left_point = intersect_circles(rosette_center, rosette_radius, fillet_left_arc_center, foil_radius).lower_y_intersection_point
+    fillet_bottom_point = displace_point_by_vector(right_foil_center, displacement_vector, norm(displacement_vector) / 2)
+
+    fillet_right_arc = arc(fillet_right_arc_center, fillet_right_point, fillet_bottom_point)
+    fillet_upper_arc = arc(fillet_upper_arc_center, fillet_right_point, fillet_left_point)
+    fillet_left_arc = arc(fillet_left_arc_center, fillet_bottom_point, fillet_left_point)
+
+    return (right_arc = fillet_right_arc, upper_arc = fillet_upper_arc, left_arc = fillet_left_arc)
+end
+# == FILLETS == #
+
+function rosette_rounded_foils(rosette_center, rosette_radius, n_foils, orientation, inner_offset, profile)
     # Check if n_foils >= 1, otherwise raise an error
     Δα = 2π / n_foils
 
+    foil = get_rounded_foil(rosette_center, rosette_radius, Δα, orientation)
+    #fillet = get_rosette_rounded_foils_fillet(rosette_center, rosette_radius, 
+    #                                            arc_center(foil), arc_radius(foil), 
+    #                                                Δα, inner_offset)
+    foil = arc_bidirectionally_extended_uniform_offset(foil, inner_offset)
+    current_rotation_angle = 0
+
     while n_foils > 0
+        # Fillets
+        #fillet_arc_position = current_rotation_angle + orientation
+        #rotate(fillet.right_arc, fillet_arc_position, rosette_center)
+        #rotate(fillet.upper_arc, fillet_arc_position, rosette_center)
+        #rotate(fillet.left_arc, fillet_arc_position, rosette_center)
+
         # Rounded foils
-        foil = get_rounded_foil(rosette_center, rosette_radius, Δα, orientation)
-        delete_shape(foil)
-        foil = offset_arc(foil, inner_offset)
-        delete_shape(foil)
+        rotate(foil, current_rotation_angle, rosette_center)
+
+        # Rounded foils connections
+        #connection_start_point = arc_end_point(foil)
+        #rosette_center_to_foil_start_point = arc_start_point(foil) - rosette_center
+        #rosette_center_to_foil_start_point_polar_angle = atan(rosette_center_to_foil_start_point.y, rosette_center_to_foil_start_point.x)
+        #connection_end_point = rosette_center + vpol(norm(rosette_center_to_foil_start_point), rosette_center_to_foil_start_point_polar_angle + Δα)
+        #connection = line(connection_start_point, connection_end_point)
+        #rotate(connection, current_rotation_angle, rosette_center)
 
         # 3D rosette rounded foils
-        push!(three_dimensional_rounded_foils, three_dimensionalize_rosette_rounded_foils(foil, -inner_offset, profile))
+        three_dimensionalized_foil_and_connection = three_dimensionalize_rosette_rounded_foils(foil, connection, -inner_offset, profile)
+        rotate(three_dimensionalized_foil_and_connection.foil, current_rotation_angle, rosette_center)
+        #rotate(three_dimensionalized_foil_and_connection.connection, current_rotation_angle, rosette_center)
 
-        orientation += Δα
+        current_rotation_angle += Δα
         n_foils -= 1
     end
-
-    return three_dimensional_rounded_foils
 end
 
 function rosette_pointed_foils(rosette_center, rosette_radius, n_foils, displacement_ratio, orientation, inner_offset, profile)
-    three_dimensional_pointed_foils = []
-
     # Check if n_foils >= 1 and if displacement_ratio > 1, otherwise raise an error
     Δα = 2π / n_foils
 
-    while n_foils > 0
-        # Pointed foils
-        foil = get_pointed_foil(rosette_center, rosette_radius, Δα, displacement_ratio, orientation)
-        outer_foil_right_arc = foil.right_arc 
-        outer_foil_left_arc = foil.left_arc
+    foil = get_pointed_foil(rosette_center, rosette_radius, Δα, displacement_ratio, orientation)
+    rounded_foil_center = foil.rounded_foil_center
+    outer_foil_right_arc = foil.right_arc 
+    outer_foil_left_arc = foil.left_arc
+    foil_radius = arc_radius(outer_foil_right_arc)
+    foil_right_arc = arc_start_angle_extended_offset(outer_foil_right_arc, inner_offset)
+    foil_left_arc = arc_amplitude_extended_offset(outer_foil_left_arc, inner_offset)
+    
+    scaling_factor = rosette_radius / distance(rosette_center, arc_end_point(foil_right_arc))
+    #fillet = get_rosette_pointed_foils_fillet(rosette_center, rosette_radius, 
+    #                                            rounded_foil_center, arc_center(outer_foil_right_arc), foil_radius, 
+    #                                                Δα, scaling_factor, inner_offset)
 
-        scaling_factor = rosette_radius / distance(rosette_center, arc_end_point(outer_foil_right_arc))
+    current_rotation_angle = 0
+
+    while n_foils > 0
+        # Fillets
+        #fillet_arc_position = current_rotation_angle + orientation
+        #scale(rotate(fillet.right_arc, fillet_arc_position, rosette_center), scaling_factor, rosette_center)
+        #scale(rotate(fillet.upper_arc, fillet_arc_position, rosette_center), scaling_factor, rosette_center)
+        #scale(rotate(fillet.left_arc, fillet_arc_position, rosette_center), scaling_factor, rosette_center)
+
+        # Pointed foils
+        scale(rotate(foil_right_arc, current_rotation_angle, rosette_center), scaling_factor, rosette_center)
+        scale(rotate(foil_left_arc, current_rotation_angle, rosette_center), scaling_factor, rosette_center)
+
+        # Pointed foils connections
+        #connection_start_point = arc_end_point(foil_left_arc)
+        #rosette_center_to_foil_start_point = arc_start_point(foil_right_arc) - rosette_center
+        #rosette_center_to_foil_start_point_polar_angle = atan(rosette_center_to_foil_start_point.y, rosette_center_to_foil_start_point.x)
+        #connection_end_point = rosette_center + vpol(norm(rosette_center_to_foil_start_point), rosette_center_to_foil_start_point_polar_angle + Δα)
+        #connection = line(connection_start_point, connection_end_point)
+        #scale(rotate(connection, current_rotation_angle, rosette_center), scaling_factor, rosette_center)
 
         # 3D rosette pointed foils
-        three_dimensionalized_foil = three_dimensionalize_rosette_pointed_foils(outer_foil_right_arc, outer_foil_left_arc, 
-                                                                                    inner_offset, profile)
-        
-        push!(three_dimensional_pointed_foils, scale(three_dimensionalized_foil.foil_right_arc, scaling_factor, rosette_center))
-        push!(three_dimensional_pointed_foils, scale(three_dimensionalized_foil.foil_left_arc, scaling_factor, rosette_center))
+        three_dimensionalized_foil_and_connection = three_dimensionalize_rosette_pointed_foils(outer_foil_right_arc, outer_foil_left_arc, 
+                                                                                                    connection, inner_offset, profile)
+        scale(rotate(three_dimensionalized_foil_and_connection.foil_right_arc, current_rotation_angle, rosette_center), scaling_factor, rosette_center)
+        scale(rotate(three_dimensionalized_foil_and_connection.foil_left_arc, current_rotation_angle, rosette_center), scaling_factor, rosette_center)
+        #scale(rotate(three_dimensionalized_foil_and_connection.connection, current_rotation_angle, rosette_center), scaling_factor, rosette_center)
 
         n_foils -= 1
-        orientation += Δα
+        current_rotation_angle += Δα
     end
-
-    return three_dimensional_pointed_foils
 end
 # == ROSETTES == #
 # == GOTHIC ORNAMENTAL GEOMETRY == #
@@ -416,7 +736,6 @@ function gothic_window(window)
     rosette_style = get_window_rosette_style(window)
     left_sub_arch_style = deepcopy(get_window_left_sub_arch_style(window))
     right_sub_arch_style = deepcopy(get_window_right_sub_arch_style(window))
-    three_dimensional_window = []
 
     # Arch body auxiliary coordinates
     upper_left_corner = xy(bottom_left_corner.x, upper_right_corner.y)
@@ -424,18 +743,23 @@ function gothic_window(window)
 
     # Arch top portion
     arcs = lancet_arch_top(upper_left_corner, upper_right_corner, excess)
+    right_arc_center = arc_center(arcs.right_arc)
+    left_arc_center = arc_center(arcs.left_arc)
+    arcs_radius = arc_radius(arcs.right_arc)
 
     # 3D Arch
-    push!(three_dimensional_window, three_dimensionalize_arch_top(arcs.left_arc, arcs.right_arc, outer_offset, profile))
-    push!(three_dimensional_window, three_dimensionalize_arch_body(upper_left_corner, bottom_left_corner, 
-                                                                    bottom_right_corner, upper_right_corner, 
-                                                                        outer_offset, profile))
+    three_dimensional_window = three_dimensionalize_arch_top(arcs.left_arc, arcs.right_arc, outer_offset, profile)
+    three_dimensional_window = union(three_dimensional_window,
+                                        three_dimensionalize_arch_body(upper_left_corner, bottom_left_corner, 
+                                                                        bottom_right_corner, upper_right_corner, 
+                                                                            outer_offset, profile))
 
     # Sub-Arches
     if !isnothing(left_sub_arch_style) && !isnothing(right_sub_arch_style)
         # 3D Arch continuation
-        push!(three_dimensional_window, three_dimensionalize_arch_middle(bottom_left_corner, upper_right_corner, 
-                                                                            vertical_distance_to_sub_arch, inner_offset, profile))
+        three_dimensional_window = union(three_dimensional_window, 
+                                            three_dimensionalize_arch_middle(bottom_left_corner, upper_right_corner, 
+                                                                                vertical_distance_to_sub_arch, inner_offset, profile))
 
         # Auxiliary calculations
         arch_width = distance(bottom_left_corner, bottom_right_corner)
@@ -460,10 +784,12 @@ function gothic_window(window)
         right_outer_sub_arch_top = lancet_arch_top(right_sub_arch_body.upper_left_corner - vx(inner_offset), right_sub_arch_body.upper_right_corner + vx(inner_offset),
                                                         outer_sub_arch_excess)
         # 3D outer arches
-        push!(three_dimensional_window, three_dimensionalize_arch_top(left_outer_sub_arch_top.left_arc, left_outer_sub_arch_top.right_arc, 
-                                                                        inner_offset, profile))
-        push!(three_dimensional_window, three_dimensionalize_arch_top(right_outer_sub_arch_top.left_arc, right_outer_sub_arch_top.right_arc, 
-                                                                        inner_offset, profile))
+        three_dimensional_window = union(three_dimensional_window, 
+                                            three_dimensionalize_arch_top(left_outer_sub_arch_top.left_arc, 
+                                                                            left_outer_sub_arch_top.right_arc, inner_offset, profile))
+        three_dimensional_window = union(three_dimensional_window, 
+                                            three_dimensionalize_arch_top(right_outer_sub_arch_top.left_arc, 
+                                                                            right_outer_sub_arch_top.right_arc, inner_offset, profile))
 
         # Left sub-arch style additions
         set_window_bottom_left_corner(left_sub_arch_style, left_sub_arch_body.bottom_left_corner)
@@ -485,8 +811,16 @@ function gothic_window(window)
         left_sub_arch = gothic_window(left_sub_arch_style)
         right_sub_arch = gothic_window(right_sub_arch_style)
 
-        push!(three_dimensional_window, left_sub_arch.three_dimensional_window)
-        push!(three_dimensional_window, right_sub_arch.three_dimensional_window)
+        three_dimensional_window = union(three_dimensional_window, left_sub_arch.three_dimensional_window)
+        three_dimensional_window = union(three_dimensional_window, right_sub_arch.three_dimensional_window)
+
+        left_sub_arch_left_arc_center = arc_center(left_sub_arch.left_arc)
+        left_sub_arch_right_arc_center = arc_center(left_sub_arch.right_arc)
+
+        right_sub_arch_left_arc_center = arc_center(right_sub_arch.left_arc)
+        right_sub_arch_right_arc_center = arc_center(right_sub_arch.right_arc)
+
+        sub_arcs_radius = arc_radius(left_sub_arch.left_arc)
 
         # Rosette
         rosette = compute_rosette(bottom_left_corner, upper_right_corner, 
@@ -497,28 +831,31 @@ function gothic_window(window)
         rosette_profile = get_rosette_profile(rosette_style)
         rosette_foil_instantiator = get_rosette_foil_instantiator(rosette_style)
 
-        push!(three_dimensional_window, three_dimensionalize_rosette(rosette_center, rosette_radius, 
-                                                                        inner_offset, rosette_profile))
+        three_dimensional_window = union(three_dimensional_window, three_dimensionalize_rosette(rosette_center, rosette_radius, 
+                                                                                                    inner_offset, rosette_profile))
 
         if rosette_foil_instantiator === rosette_rounded_foils
             rosette_n_foils = get_rosette_n_foils(rosette_style)
             rosette_starting_foil_orientation = get_rosette_starting_foil_orientation(rosette_style)
-
-            push!(three_dimensional_window, rosette_foil_instantiator(rosette_center, rosette_radius, rosette_n_foils, 
-                                                                        rosette_starting_foil_orientation, 
-                                                                            rosette_radius * inner_offset_ratio, rosette_profile)...)
+            rosette_foil_instantiator(rosette_center, rosette_radius, rosette_n_foils, 
+                                        rosette_starting_foil_orientation, rosette_radius * inner_offset_ratio, rosette_profile)
         elseif rosette_foil_instantiator === rosette_pointed_foils
             rosette_n_foils = get_rosette_n_foils(rosette_style)
             rosette_starting_foil_orientation = get_rosette_starting_foil_orientation(rosette_style)
             rosette_displacement_ratio = get_rosette_displacement_ratio(rosette_style)
-
-            push!(three_dimensional_window, rosette_foil_instantiator(rosette_center, rosette_radius, rosette_n_foils,
-                                                                        rosette_displacement_ratio, rosette_starting_foil_orientation, 
-                                                                            rosette_radius * inner_offset_ratio, rosette_profile)...)
+            rosette_foil_instantiator(rosette_center, rosette_radius, rosette_n_foils,
+                                        rosette_displacement_ratio, rosette_starting_foil_orientation, 
+                                            rosette_radius * inner_offset_ratio, rosette_profile)
         end
+
+        # Fillets
+        #circular_rosette_fillets(right_arc_center, left_arc_center, arcs_radius - outer_offset, 
+        #                            rosette_center, rosette_radius + inner_offset, 
+        #                                right_sub_arch_right_arc_center, right_sub_arch_left_arc_center,
+        #                                    left_sub_arch_left_arc_center, left_sub_arch_right_arc_center, sub_arcs_radius + inner_offset)
     end
 
-    return (left_arc = arcs.left_arc, right_arc = arcs.right_arc, three_dimensional_window = union(three_dimensional_window...))
+    return (left_arc = arcs.left_arc, right_arc = arcs.right_arc, three_dimensional_window = three_dimensional_window)
 end
 # == GOTHIC WINDOWS == #
 
@@ -656,6 +993,13 @@ function Rosette_Rounded_Style(n_foils, starting_foil_orientation, rosette_profi
     return Rosette(rosette_rounded_foils, n_foils, starting_foil_orientation, nothing, rosette_profile)
 end
 
+#struct Fillets
+#    right_fillet_profile
+#    upper_fillet_profile
+#    left_fillet_profile
+#    bottom_fillet_profile
+#end
+
 # IMPORTANT - PROFILES MUST BE CENTERED IN THE ORIGIN AND SHOULD EITHER BE A CIRCLE OR A SHAPE INSCRIBED IN A CIRCLES
 # THE CIRCLE'S RADIUS SHOULD ALWAYS BE EQUAL TO 1 SINCE IT WILL BE SCALED PROVIDED THE OUTER/INNER OFFSET AS IT PROPAGATES THROUGH THE MODELING PROCESS
 # TO EXEMPLIFY WE WILL RESORT TO 3 DIFFERENT PROFILES - A CIRCLE AND TWO DIFFERENT KINDS OF STARS
@@ -681,9 +1025,7 @@ function Gothic_Window_First_Style(bottom_left_corner, upper_right_corner, exces
 
     rosette_style = Empty_Rosette_Style(window_profile)
 
-    sub_sub_arches_style = Sub_Gothic_Window(window_profile, nothing, nothing, nothing)
-
-    sub_arches_style = Sub_Gothic_Window(window_profile, rosette_style, sub_sub_arches_style, sub_sub_arches_style)
+    sub_arches_style = Sub_Gothic_Window(window_profile, rosette_style, nothing, nothing)
 
     main_arch = Gothic_Window(bottom_left_corner, upper_right_corner,
                                 excess, vertical_distance_to_sub_arch,
@@ -693,71 +1035,67 @@ function Gothic_Window_First_Style(bottom_left_corner, upper_right_corner, exces
     return main_arch
 end
 
-#first_style_window = Gothic_Window_First_Style(xy(-10, -16), xy(10, 16), 1, 3, 1, 1)
+first_style_window = Gothic_Window_First_Style(xy(-10, -16), xy(10, 16), 1, 3, 1, 1)
 #delete_shape(first_style_window.three_dimensional_window)
 # == 1ST STYLE == #
 
 # == 2ND STYLE == #
-function Gothic_Window_Second_Style(bottom_left_corner, upper_right_corner, excess, vertical_distance_to_sub_arch, outer_offset, inner_offset)
-    main_arch_profile = surface_circle(u0(), DEFAULT_PROFILE_RADIUS)
-    sub_arches_profile = union(surface(regular_polygon(4, u0(), DEFAULT_PROFILE_RADIUS, 0)), 
-                                surface(regular_polygon(4, u0(), DEFAULT_PROFILE_RADIUS, π/4)))
-    delete_shape(sub_arches_profile)
-    
-    main_arch_rosette_style = Rosette_Rounded_Style(6, 0, main_arch_profile)
-    sub_arches_rosette_style = Rosette_Pointed_Style(3, 0, 2, sub_arches_profile)
-
-    sub_sub_arches_style = Sub_Gothic_Window(sub_arches_profile, nothing, nothing, nothing)
-
-    sub_arches_style = Sub_Gothic_Window(sub_arches_profile, sub_arches_rosette_style, sub_sub_arches_style, sub_sub_arches_style)
-
-    main_arch = Gothic_Window(bottom_left_corner, upper_right_corner,
-                                excess, vertical_distance_to_sub_arch,
-                                    outer_offset, inner_offset, main_arch_profile,
-                                        main_arch_rosette_style, sub_arches_style, sub_arches_style)
-
-    return main_arch
-end
+#function Gothic_Window_Second_Style(bottom_left_corner, upper_right_corner, excess, vertical_distance_to_sub_arch, outer_offset, inner_offset)
+#    main_arch_profile = surface_circle(u0(), DEFAULT_PROFILE_RADIUS)
+#    sub_arches_profile = union(surface(regular_polygon(4, u0(), DEFAULT_PROFILE_RADIUS, 0)), 
+#                                surface(regular_polygon(4, u0(), DEFAULT_PROFILE_RADIUS, π/4)))
+#
+#    main_arch_rosette_style = Rosette_Rounded_Style(6, 0, main_arch_profile)
+#    sub_arches_rosette_style = Rosette_Pointed_Style(3, 0, 2, sub_arches_profile)
+#
+#    sub_sub_arches_style = Sub_Gothic_Window(sub_arches_profile, nothing, nothing, nothing)
+#
+#    sub_arches_style = Sub_Gothic_Window(sub_arches_profile, sub_arches_rosette_style, sub_sub_arches_style, sub_sub_arches_style)
+#
+#    main_arch = Gothic_Window(bottom_left_corner, upper_right_corner,
+#                                excess, vertical_distance_to_sub_arch,
+#                                    outer_offset, inner_offset, main_arch_profile,
+#                                        main_arch_rosette_style, sub_arches_style, sub_arches_style)
+#
+#    return main_arch
+#end
 #
 #second_style_window = Gothic_Window_Second_Style(xy(-10, -16), xy(10, 16), 1, 3, 1, 1)
-#delete_shape(second_style_window.three_dimensional_window)
 # == 2ND STYLE == #
 
 # == 3RD STYLE == #
-function Gothic_Window_Third_Style(bottom_left_corner, upper_right_corner,
-                                        excess, vertical_distance_to_sub_arch,
-                                            outer_offset, inner_offset)
-    main_arch_profile = union(surface(regular_polygon(4, u0(), DEFAULT_PROFILE_RADIUS, 0)), 
-                                surface(regular_polygon(4, u0(), DEFAULT_PROFILE_RADIUS, π/4)))
-
-    left_sub_arch_profile = surface_circle(u0(), DEFAULT_PROFILE_RADIUS)
-    right_sub_arch_profile = surface(regular_polygon(4, u0(), 1))
-    delete_shape(right_sub_arch_profile)
-
-    main_rosette_profile = left_sub_arch_profile
-
-    sub_left_rosette_profile = right_sub_arch_profile
-    sub_right_rosette_profile = main_arch_profile
-
-    main_arch_rosette_style = Rosette_Pointed_Style(3, π/2, 2, main_rosette_profile)
-    sub_left_rosette_style = Rosette_Rounded_Style(6, 0, sub_left_rosette_profile)
-    sub_right_rosette_style = Rosette_Pointed_Style(9, π/4, 5, sub_right_rosette_profile)
-
-    sub_sub_arches_style = Sub_Gothic_Window(main_arch_profile, nothing, nothing, nothing)
-
-    left_sub_arch_style = Sub_Gothic_Window(left_sub_arch_profile, sub_left_rosette_style, sub_sub_arches_style, sub_sub_arches_style)
-    right_sub_arch_style = Sub_Gothic_Window(right_sub_arch_profile, sub_right_rosette_style, sub_sub_arches_style, sub_sub_arches_style)
-
-    main_arch = Gothic_Window(bottom_left_corner, upper_right_corner, 
-                                excess, vertical_distance_to_sub_arch, 
-                                    outer_offset, inner_offset, main_arch_profile, 
-                                        main_arch_rosette_style, left_sub_arch_style, right_sub_arch_style)
-
-    return main_arch
-end
+#function Gothic_Window_Third_Style(bottom_left_corner, upper_right_corner,
+#                                        excess, vertical_distance_to_sub_arch,
+#                                            outer_offset, inner_offset)
+#    main_arch_profile = union(surface(regular_polygon(4, u0(), DEFAULT_PROFILE_RADIUS, 0)), 
+#                                surface(regular_polygon(4, u0(), DEFAULT_PROFILE_RADIUS, π/4)))
+#
+#    left_sub_arch_profile = surface_circle(u0(), DEFAULT_PROFILE_RADIUS)
+#    right_sub_arch_profile = surface(regular_polygon(4, u0(), 1))
+#
+#    main_rosette_profile = left_sub_arch_profile
+#
+#    sub_left_rosette_profile = right_sub_arch_profile
+#    sub_right_rosette_profile = main_arch_profile
+#
+#    main_arch_rosette_style = Rosette_Pointed_Style(3, π/2, 2, main_rosette_profile)
+#    sub_left_rosette_style = Rosette_Rounded_Style(6, 0, sub_left_rosette_profile)
+#    sub_right_rosette_style = Rosette_Pointed_Style(9, π/4, 5, sub_right_rosette_profile)
+#
+#    sub_sub_arches_style = Sub_Gothic_Window(main_arch_profile, nothing, nothing, nothing)
+#
+#    left_sub_arch_style = Sub_Gothic_Window(left_sub_arch_profile, sub_left_rosette_style, sub_sub_arches_style, sub_sub_arches_style)
+#    right_sub_arch_style = Sub_Gothic_Window(right_sub_arch_profile, sub_right_rosette_style, sub_sub_arches_style, sub_sub_arches_style)
+#
+#    main_arch = Gothic_Window(bottom_left_corner, upper_right_corner, 
+#                                excess, vertical_distance_to_sub_arch, 
+#                                    outer_offset, inner_offset, main_arch_profile, 
+#                                        main_arch_rosette_style, left_sub_arch_style, right_sub_arch_style)
+#
+#    return main_arch
+#end
 #
 #third_style_window = Gothic_Window_Third_Style(xy(-10, -16), xy(10, 16), 1, 3, 1, 1)
-#delete_shape(third_style_window.three_dimensional_window)
 # == 3RD STYLE == #
 
 #gothic_window(xy(-10, -16), xy(10, 16), 1, 2, 3, 1, 1; three_dimensionality_enabled = false)
@@ -966,22 +1304,8 @@ VERTICAL_HALLWAY_WALL_LEFT_PILLARS = (range(1, 10), 9)
 VERTICAL_HALLWAY_WALL_RIGHT_PILLARS = (range(1, 10), 10)
 # == MAIN HALLWAY WALLS == #
 
-# == AISLE OUTER WINDOW WALLS == #
-AISLE_OUTER_WINDOW_WALL_HEIGHT = AISLE_BUTTRESS_HEIGHT / 2
-
-NW_AISLE_OUTER_WINDOW_WALL_LEFT_PILLARS = (3, range(4, 7))
-NW_AISLE_OUTER_WINDOW_WALL_RIGHT_PILLARS = (3, range(5, 8))
-NE_AISLE_OUTER_WINDOW_WALL_LEFT_PILLARS = (3, range(11, 13))
-NE_AISLE_OUTER_WINDOW_WALL_RIGHT_PILLARS = (3, range(12, 14))
-
-SW_AISLE_OUTER_WINDOW_WALL_LEFT_PILLARS = (8, range(4, 7))
-SW_AISLE_OUTER_WINDOW_WALL_RIGHT_PILLARS = (8, range(5, 8))
-SE_AISLE_OUTER_WINDOW_WALL_LEFT_PILLARS = (8, range(11, 13))
-SE_AISLE_OUTER_WINDOW_WALL_RIGHT_PILLARS = (8, range(10, 13))
-# == AISLE OUTER WINDOW WALLS == #
-
 # == AISLE OUTER WALLS == #
-AISLE_OUTER_WALL_HEIGHT = AISLE_OUTER_WINDOW_WALL_HEIGHT
+AISLE_OUTER_WALL_HEIGHT = AISLE_BUTTRESS_HEIGHT / 2
 
 NW_AISLE_OUTER_WALL_LEFT_PILLARS = (3, range(4, 8))
 NW_AISLE_OUTER_WALL_RIGHT_PILLARS = (4, range(4, 8))
@@ -1743,9 +2067,9 @@ function standing_window_wall_block(left_pillar, right_pillar, depth, height,
     window_to_wall_general_offset = distance(left_anchor_offset, right_anchor_offset) / 8
 
     bottom_left_corner = displace_point_by_vector(left_anchor_offset, left_to_right_anchor_vector, 
-                                                    window_to_wall_general_offset) + GROWING_HEIGHT_DIRECTION * window_to_wall_general_offset
+                            window_to_wall_general_offset) + GROWING_HEIGHT_DIRECTION * window_to_wall_general_offset
     bottom_right_corner = displace_point_by_vector(right_anchor_offset, left_to_right_anchor_vector,
-                                                    -window_to_wall_general_offset) + GROWING_HEIGHT_DIRECTION * window_to_wall_general_offset
+                            -window_to_wall_general_offset) + GROWING_HEIGHT_DIRECTION * window_to_wall_general_offset
 
     arch_top_height = get_arch_top_height(bottom_left_corner, bottom_right_corner, arch_excess)
 
@@ -1759,18 +2083,10 @@ function standing_window_wall_block(left_pillar, right_pillar, depth, height,
     wall = standing_wall_block(left_anchor_offset, right_anchor_offset, depth, height)
     window_wall = subtraction(wall, window_hole)
     
-    # WINDOW STUFF TO BE REVISED OR SIMPLIFIED OR MODULARIZED - WHATEVER'S BEST UNDER TIME CONSTRAINTS
-    planar_gothic_window_width = distance(bottom_left_corner, bottom_right_corner)
-    planar_gothic_window_height_without_arch = distance(upper_left_corner, bottom_left_corner)
-
-    planar_upper_left_corner = u0() - vx(planar_gothic_window_width / 2)
-    planar_upper_right_corner = planar_upper_left_corner + vx(planar_gothic_window_width)
-    planar_bottom_left_corner = planar_upper_left_corner - vy(planar_gothic_window_height_without_arch)
-
-    planar_gothic_window = window_style_instantiator(planar_bottom_left_corner, planar_upper_right_corner, 
-                                                        arch_excess, 1, depth / 2, depth / 2).three_dimensional_window
-    planar_gothic_window = rotate(planar_gothic_window, π/2, u0(), EAST)
-    move(planar_gothic_window, intermediate_loc(upper_left_corner, upper_right_corner) - u0())
+    #window = window_style_instantiator(bottom_left_corner, upper_right_corner, 
+    #                                    excess, vertical_distance_to_sub_arch, depth, depth)
+#
+    #return nothing
 end
 
 function main_hallway_arch(left_pillar, right_pillar;
@@ -1779,17 +2095,6 @@ function main_hallway_arch(left_pillar, right_pillar;
                                 excess = 1,
                                 offset = 0)
     standing_arch_wall_block(left_pillar, right_pillar, depth, height, excess, offset)
-end
-
-function aisle_outer_window(left_pillar, right_pillar;
-                                depth = get_pillar_depth(left_pillar),
-                                height = AISLE_OUTER_WINDOW_WALL_HEIGHT,
-                                excess = 1,
-                                vertical_distance_to_sub_arch = 1,
-                                window_style_instantiator = Gothic_Window_First_Style,
-                                offset = 0)
-    standing_window_wall_block(left_pillar, right_pillar, depth, height,
-                                excess, vertical_distance_to_sub_arch, window_style_instantiator, offset)
 end
 
 function aisle_outer_arch(left_pillar, right_pillar;
@@ -1937,18 +2242,6 @@ function instantiate_main_hallways_walls(pillars)
                                 VERTICAL_HALLWAY_WALL_LEFT_PILLARS[COLUMN_INDEX], VERTICAL_HALLWAY_WALL_RIGHT_PILLARS[COLUMN_INDEX])
 end
 
-function instantiate_aisles_outer_windows(pillars)
-    right_pillar_increment_column_range_instantiator(pillars, aisle_outer_window, NW_AISLE_OUTER_WINDOW_WALL_LEFT_PILLARS[COLUMN_INDEX],
-                                                        NW_AISLE_OUTER_WINDOW_WALL_LEFT_PILLARS[ROW_INDEX], NW_AISLE_OUTER_WINDOW_WALL_RIGHT_PILLARS[ROW_INDEX])
-    right_pillar_increment_column_range_instantiator(pillars, aisle_outer_window, NE_AISLE_OUTER_WINDOW_WALL_LEFT_PILLARS[COLUMN_INDEX],
-                                                        NE_AISLE_OUTER_WINDOW_WALL_LEFT_PILLARS[ROW_INDEX], NE_AISLE_OUTER_WINDOW_WALL_RIGHT_PILLARS[ROW_INDEX])
-
-    right_pillar_increment_column_range_instantiator(pillars, aisle_outer_window, SW_AISLE_OUTER_WINDOW_WALL_LEFT_PILLARS[COLUMN_INDEX],
-                                                        SW_AISLE_OUTER_WINDOW_WALL_LEFT_PILLARS[ROW_INDEX], SW_AISLE_OUTER_WINDOW_WALL_RIGHT_PILLARS[ROW_INDEX])
-    right_pillar_increment_column_range_instantiator(pillars, aisle_outer_window, SE_AISLE_OUTER_WINDOW_WALL_LEFT_PILLARS[COLUMN_INDEX],
-                                                        SE_AISLE_OUTER_WINDOW_WALL_LEFT_PILLARS[ROW_INDEX], SE_AISLE_OUTER_WINDOW_WALL_RIGHT_PILLARS[ROW_INDEX])
-end
-
 function instantiate_aisles_outer_walls(pillars)
     column_range_instantiator(pillars, aisle_outer_arch, NW_AISLE_OUTER_WALL_LEFT_PILLARS[COLUMN_INDEX],
                                 NW_AISLE_OUTER_WALL_LEFT_PILLARS[ROW_INDEX], NW_AISLE_OUTER_WALL_RIGHT_PILLARS[ROW_INDEX])
@@ -1970,7 +2263,7 @@ function instantiate_aisles_middle_walls(pillars)
     right_pillar_increment_column_range_instantiator(pillars, aisle_middle_arch, SW_AISLE_MIDDLE_WALL_LEFT_PILLARS[COLUMN_INDEX],
                                                         SW_AISLE_MIDDLE_WALL_LEFT_PILLARS[ROW_INDEX], SW_AISLE_MIDDLE_WALL_RIGHT_PILLARS[ROW_INDEX])
     right_pillar_increment_column_range_instantiator(pillars, aisle_middle_arch, SE_AISLE_MIDDLE_WALL_LEFT_PILLARS[COLUMN_INDEX],
-                                                        SE_AISLE_MIDDLE_WALL_LEFT_PILLARS[ROW_INDEX], SE_AISLE_MIDDLE_WALL_RIGHT_PILLARS[ROW_INDEX])
+                                                        SE_AISLE_MIDDLE_WALL_LEFT_PILLARS[ROW_INDEX], SE_AISLE_MIDDLE_WALL_RIGHT_PILLARS[ROW_INDEX])  
 end
 
 function instantiate_aisles_inner_walls(pillars)
@@ -2014,7 +2307,6 @@ end
 function instantiate_all_walls(pillars)
     instantiate_flying_buttresses(pillars)
     instantiate_main_hallways_walls(pillars)
-    instantiate_aisles_outer_windows(pillars)
     instantiate_aisles_outer_walls(pillars)
     instantiate_aisles_middle_walls(pillars)
     instantiate_aisles_inner_walls(pillars)
@@ -2026,17 +2318,17 @@ end
 # == WALLS == #
 
 # == PLAYGROUND == #
-pillars = Array{Union{Pillar, Nothing}}(nothing, 10, 17)
-
-instantiate_all_pillars(pillars)
-instantiate_all_walls(pillars)
+#pillars = Array{Union{Pillar, Nothing}}(nothing, 10, 17)
+#
+#instantiate_all_pillars(pillars)
+#instantiate_all_walls(pillars)
 # == PLAYGROUND == #
 
-#cena = surface_circle(u0(), 2)
+#circle = surface_circle(u0(), 2)
 #pathA = line(x(5), xz(5, 10))
 #pathB = line(x(15), xz(15, 10))
-#sweep(pathA, cena)
-#sweep(pathB, cena)
+#sweep(pathA, circle)
+#sweep(pathB, circle)
 #pillarA = Pillar(nothing, nothing, nothing, x(5), NORTH, 4, 4, 10)
 #pillarB = Pillar(nothing, nothing, nothing, x(15), NORTH, 4, 4, 10)
-#standing_window_wall_block(pillarA, pillarB, get_pillar_depth(pillarA), get_pillar_height(pillarA), 1, 3, Gothic_Window_Third_Style, 0)
+#standing_window_wall_block(pillarA, pillarB, get_pillar_depth(pillarA), get_pillar_height(pillarA), 1, 3, nothing, 0)
