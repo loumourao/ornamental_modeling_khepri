@@ -62,19 +62,25 @@ function intersect_line_ellipse(p0, v, m, r)
 end
 
 # == ARCS == #
-function arc(center, start_point, end_point)
-    a = start_point - center
-    b = end_point - center
-
-    ccw_start_angle = atan(a.y, a.x)
-    ccw_end_angle = atan(b.y, b.x)
-    radius = norm(a)
+function angle_between_ccw_oriented(v, w)
+    ccw_start_angle = atan(v.y, v.x)
+    ccw_end_angle = atan(w.y, w.x)
 
     if ccw_end_angle > ccw_start_angle
         amplitude = ccw_end_angle - ccw_start_angle
     else
         amplitude = 2π - ccw_start_angle + ccw_end_angle
     end
+
+    return amplitude
+end
+
+function arc(center, start_point, end_point)
+    a = start_point - center
+    b = end_point - center
+    radius = norm(a)
+    ccw_start_angle = atan(a.y, a.x)
+    amplitude = angle_between_ccw_oriented(a, b)
 
     return KhepriAutoCAD.arc(center, radius, ccw_start_angle, amplitude)
 end
@@ -1022,8 +1028,36 @@ SE_AISLE_INNER_WALL_LEFT_PILLARS = (6, range(11, 14))
 SE_AISLE_INNER_WALL_RIGHT_PILLARS = (7, range(11, 14))
 # == AISLE INNER WALLS == #
 
+# == AISLE INNER WINDOW WALLS == #
+AISLE_INNER_WINDOW_WALL_HEIGHT = MAIN_HALLWAYS_WALL_HEIGHT
+
+NW_AISLE_INNER_WINDOW_WALL_LEFT_PILLARS = (5, range(4, 8))
+NW_AISLE_INNER_WINDOW_WALL_RIGHT_PILLARS = (5, range(5, 9))
+NE_AISLE_INNER_WINDOW_WALL_LEFT_PILLARS = (5, range(10, 13))
+NE_AISLE_INNER_WINDOW_WALL_RIGHT_PILLARS = (5, range(11, 14))
+
+SW_AISLE_INNER_WINDOW_WALL_LEFT_PILLARS = (6, range(4, 8))
+SW_AISLE_INNER_WINDOW_WALL_RIGHT_PILLARS = (6, range(5, 9))
+SE_AISLE_INNER_WINDOW_WALL_LEFT_PILLARS = (6, range(10, 13))
+SE_AISLE_INNER_WINDOW_WALL_RIGHT_PILLARS = (6, range(11, 14))
+# == AISLE INNER WINDOW WALLS == #
+
+# == TRANSEPT OUTER WINDOW WALLS == #
+TRANSEPT_OUTER_WINDOW_WALL_HEIGHT = AISLE_INNER_WALL_HEIGHT
+
+WN_TRANSEPT_OUTER_WINDOW_WALL_LEFT_PILLARS = (range(1, 2), 8)
+WN_TRANSEPT_OUTER_WINDOW_WALL_RIGHT_PILLARS = (range(2, 3), 8)
+EN_TRANSEPT_OUTER_WINDOW_WALL_LEFT_PILLARS = (range(1, 2), 11)
+EN_TRANSEPT_OUTER_WINDOW_WALL_RIGHT_PILLARS = (range(2, 3), 11)
+
+WS_TRANSEPT_OUTER_WINDOW_WALL_LEFT_PILLARS = (range(8, 9), 8)
+WS_TRANSEPT_OUTER_WINDOW_WALL_RIGHT_PILLARS = (range(9 ,10), 8)
+ES_TRANSEPT_OUTER_WINDOW_WALL_LEFT_PILLARS = (range(8, 9), 11)
+ES_TRANSEPT_OUTER_WINDOW_WALL_RIGHT_PILLARS = (range(9, 10), 11)
+# == TRANSEPT OUTER WINDOW WALLS == #
+
 # == TRANSEPT OUTER WALLS == #
-TRANSEPT_OUTER_WALL_HEIGHT = AISLE_INNER_WALL_HEIGHT
+TRANSEPT_OUTER_WALL_HEIGHT = TRANSEPT_OUTER_WINDOW_WALL_HEIGHT
 
 WN_TRANSEPT_OUTER_WALL_LEFT_PILLARS = (range(1, 3), 8)
 WN_TRANSEPT_OUTER_WALL_RIGHT_PILLARS = (range(1, 3), 9)
@@ -1036,11 +1070,41 @@ ES_TRANSEPT_OUTER_WALL_LEFT_PILLARS = (range(8, 10), 10)
 ES_TRANSEPT_OUTER_WALL_RIGHT_PILLARS = (range(8, 10), 11)
 # == TRANSEPT OUTER WALLS == #
 
+# == TRANSEPT INNER WINDOW WALLS == #
+TRANSEPT_INNER_WINDOW_WALL_HEIGHT = AISLE_INNER_WINDOW_WALL_HEIGHT
+
+WN_TRANSEPT_INNER_WINDOW_WALL_LEFT_PILLARS = (range(1, 4), 9)
+WN_TRANSEPT_INNER_WINDOW_WALL_RIGHT_PILLARS = (range(2, 5), 9)
+EN_TRANSEPT_INNER_WINDOW_WALL_LEFT_PILLARS = (range(1, 4), 10)
+EN_TRANSEPT_INNER_WINDOW_WALL_RIGHT_PILLARS = (range(2, 5), 10)
+
+WS_TRANSEPT_INNER_WINDOW_WALL_LEFT_PILLARS = (range(6, 9), 9)
+WS_TRANSEPT_INNER_WINDOW_WALL_RIGHT_PILLARS = (range(7, 10), 9)
+ES_TRANSEPT_INNER_WINDOW_WALL_LEFT_PILLARS = (range(6, 9), 10)
+ES_TRANSEPT_INNER_WINDOW_WALL_RIGHT_PILLARS = (range(7, 10), 10)
+# == TRANSEPT INNER WINDOW WALLS == #
+
+# == AMBULATORY INNER WINDOW WALLS == #
+AMBULATORY_INNER_WINDOW_WALL_HEIGHT = AISLE_INNER_WINDOW_WALL_HEIGHT
+
+TOP_AMBULATORY_INNER_WINDOW_WALL_LEFT_PILLARS = (5, range(14, 16))
+TOP_AMBULATORY_INNER_WINDOW_WALL_RIGHT_PILLARS = (5, range(15, 17))
+
+MIDDLE_AMBULATORY_INNER_WINDOW_WALL_LEFT_PILLAR = (5, 17)
+MIDDLE_AMBULATORY_INNER_WINDOW_WALL_RIGHT_PILLAR = (6, 17)
+
+BOTTOM_AMBULATORY_INNER_WINDOW_WALL_LEFT_PILLARS = (6, range(14, 16))
+BOTTOM_AMBULATORY_INNER_WINDOW_WALL_RIGHT_PILLARS = (6, range(15, 17))
+# == AMBULATORY INNER WINDOW WALLS == #
+
 # == AMBULATORY OUTER WALLS == #
 AMBULATORY_OUTER_WALL_HEIGHT = TRANSEPT_OUTER_WALL_HEIGHT
 
 TOP_AMBULATORY_OUTER_WALL_LEFT_PILLARS = (4, range(14, 16))
 TOP_AMBULATORY_OUTER_WALL_RIGHT_PILLARS = (4, range(15, 17))
+
+MIDDLE_AMBULATORY_OUTER_WALL_LEFT_PILLAR = (4, 17)
+MIDDLE_AMBULATORY_OUTER_WALL_RIGHT_PILLAR = (7, 17)
 
 BOTTOM_AMBULATORY_OUTER_WALL_LEFT_PILLARS = (7, range(14, 16))
 BOTTOM_AMBULATORY_OUTER_WALL_RIGHT_PILLARS = (7, range(15, 17))
@@ -1710,7 +1774,7 @@ function standing_hollow_wall_block(left_anchor, right_anchor, depth, height, ho
     return subtraction(wall, hole)
 end
 
-function standing_arch_wall_block(left_pillar, right_pillar, depth, height, arch_excess, offset)
+function standing_arch_block(left_pillar, right_pillar, depth, height, arch_excess, offset)
     wall_anchors = get_wall_anchors(left_pillar, right_pillar)
     left_anchor = wall_anchors.left_anchor
     right_anchor = wall_anchors.right_anchor
@@ -1769,8 +1833,38 @@ function standing_window_wall_block(left_pillar, right_pillar, depth, height,
 
     planar_gothic_window = window_style_instantiator(planar_bottom_left_corner, planar_upper_right_corner, 
                                                         arch_excess, 1, depth / 2, depth / 2).three_dimensional_window
+
+    # Such that it is now standing
     planar_gothic_window = rotate(planar_gothic_window, π/2, u0(), EAST)
-    move(planar_gothic_window, intermediate_loc(upper_left_corner, upper_right_corner) - u0())
+
+    # Such that it now shares the same orientation as that of the wall to which it belongs
+    wall_base_vector = right_anchor_offset - left_anchor_offset
+    window_base_vector = planar_upper_right_corner - planar_upper_left_corner
+    planar_gothic_window = rotate(planar_gothic_window, angle_between_ccw_oriented(wall_base_vector, window_base_vector), u0(), DECREASING_HEIGHT_DIRECTION)
+    planar_gothic_window = move(planar_gothic_window, intermediate_loc(upper_left_corner, upper_right_corner) - u0())
+
+    return union(window_wall, planar_gothic_window)
+end
+
+function standing_arch_wall_window_block(left_pillar, right_pillar, depth, 
+                                            arch_block_height, blank_block_height, window_block_height, 
+                                                arch_excess, vertical_distance_to_sub_arch, window_style_instantiator, offset)
+    wall_anchors = get_wall_anchors(left_pillar, right_pillar)
+    left_anchor = wall_anchors.left_anchor
+    right_anchor = wall_anchors.right_anchor
+
+    left_to_right_anchor_vector = right_anchor - left_anchor
+    left_anchor_offset = displace_point_by_vector(left_anchor, left_to_right_anchor_vector, offset)
+    right_anchor_offset = displace_point_by_vector(right_anchor, left_to_right_anchor_vector, -offset)
+
+    arch_block = standing_arch_block(left_pillar, right_pillar, depth, arch_block_height, arch_excess, offset)
+    blank_block = standing_wall_block(left_anchor_offset, right_anchor_offset, depth, blank_block_height)
+    window_block = standing_window_wall_block(left_pillar, right_pillar, depth, window_block_height, 
+                                            arch_excess, vertical_distance_to_sub_arch, window_style_instantiator, offset)
+    blank_block = move(blank_block, GROWING_HEIGHT_DIRECTION * arch_block_height)
+    window_block = move(window_block, GROWING_HEIGHT_DIRECTION * (arch_block_height + blank_block_height))
+
+    return union(arch_block, blank_block, window_block)
 end
 
 function main_hallway_arch(left_pillar, right_pillar;
@@ -1778,7 +1872,7 @@ function main_hallway_arch(left_pillar, right_pillar;
                                 height = MAIN_HALLWAYS_WALL_HEIGHT,
                                 excess = 1,
                                 offset = 0)
-    standing_arch_wall_block(left_pillar, right_pillar, depth, height, excess, offset)
+    standing_arch_block(left_pillar, right_pillar, depth, height, excess, offset)
 end
 
 function aisle_outer_window(left_pillar, right_pillar;
@@ -1797,7 +1891,7 @@ function aisle_outer_arch(left_pillar, right_pillar;
                                 height = AISLE_OUTER_WALL_HEIGHT,
                                 excess = 1,
                                 offset = 0)
-    standing_arch_wall_block(left_pillar, right_pillar, depth, height, excess, offset)
+    standing_arch_block(left_pillar, right_pillar, depth, height, excess, offset)
 end
 
 function aisle_middle_arch(left_pillar, right_pillar;
@@ -1805,7 +1899,7 @@ function aisle_middle_arch(left_pillar, right_pillar;
                                 height = AISLE_MIDDLE_WALL_HEIGHT,
                                 excess = 1,
                                 offset = 0)
-    standing_arch_wall_block(left_pillar, right_pillar, depth, height, excess, offset)
+    standing_arch_block(left_pillar, right_pillar, depth, height, excess, offset)
 end
 
 function aisle_inner_arch(left_pillar, right_pillar;
@@ -1813,7 +1907,33 @@ function aisle_inner_arch(left_pillar, right_pillar;
                                 height = AISLE_INNER_WALL_HEIGHT,
                                 excess = 1,
                                 offset = 0)
-    standing_arch_wall_block(left_pillar, right_pillar, depth, height, excess, offset)
+    standing_arch_block(left_pillar, right_pillar, depth, height, excess, offset)
+end
+
+function aisle_inner_window(left_pillar, right_pillar;
+                                depth = get_pillar_width(left_pillar),
+                                height = AISLE_INNER_WINDOW_WALL_HEIGHT,
+                                excess = 1,
+                                vertical_distance_to_sub_arch = 1,
+                                window_style_instantiator = Gothic_Window_First_Style,
+                                offset = 0)
+    arch_block_height = height * 0.4318
+    blank_block_height = (height - arch_block_height) / 3
+    window_block_height = height - arch_block_height - blank_block_height
+    standing_arch_wall_window_block(left_pillar, right_pillar, depth, 
+                                        arch_block_height, blank_block_height, window_block_height,
+                                        excess, vertical_distance_to_sub_arch, window_style_instantiator, offset)
+end
+
+function transept_outer_window(left_pillar, right_pillar;
+                                    depth = get_pillar_depth(left_pillar),
+                                    height = TRANSEPT_OUTER_WINDOW_WALL_HEIGHT,
+                                    excess = 1,
+                                    vertical_distance_to_sub_arch = 1,
+                                    window_style_instantiator = Gothic_Window_First_Style,
+                                    offset = 0)
+    standing_window_wall_block(left_pillar, right_pillar, depth, height,
+                                excess, vertical_distance_to_sub_arch, window_style_instantiator, offset)
 end
 
 function transept_outer_arch(left_pillar, right_pillar;
@@ -1821,7 +1941,37 @@ function transept_outer_arch(left_pillar, right_pillar;
                                 height = TRANSEPT_OUTER_WALL_HEIGHT,
                                 excess = 1,
                                 offset = 0)
-    standing_arch_wall_block(left_pillar, right_pillar, depth, height, excess, offset)
+    standing_arch_block(left_pillar, right_pillar, depth, height, excess, offset)
+end
+
+function transept_inner_window(left_pillar, right_pillar;
+                                depth = get_pillar_depth(left_pillar),
+                                height = AISLE_INNER_WINDOW_WALL_HEIGHT,
+                                excess = 1,
+                                vertical_distance_to_sub_arch = 1,
+                                window_style_instantiator = Gothic_Window_First_Style,
+                                offset = 0)
+    arch_block_height = height * 0.4318
+    blank_block_height = (height - arch_block_height) / 3
+    window_block_height = height - arch_block_height - blank_block_height
+    standing_arch_wall_window_block(left_pillar, right_pillar, depth, 
+                                        arch_block_height, blank_block_height, window_block_height,
+                                        excess, vertical_distance_to_sub_arch, window_style_instantiator, offset)  
+end
+
+function ambulatory_inner_window(left_pillar, right_pillar;
+                                    depth = get_pillar_width(left_pillar),
+                                    height = AMBULATORY_INNER_WINDOW_WALL_HEIGHT,
+                                    excess = 1,
+                                    vertical_distance_to_sub_arch = 1,
+                                    window_style_instantiator = Gothic_Window_First_Style,
+                                    offset = 0)
+    arch_block_height = height * 0.4318
+    blank_block_height = (height - arch_block_height) / 3
+    window_block_height = height - arch_block_height - blank_block_height
+    standing_arch_wall_window_block(left_pillar, right_pillar, depth, 
+                                        arch_block_height, blank_block_height, window_block_height,
+                                        excess, vertical_distance_to_sub_arch, window_style_instantiator, offset)   
 end
 
 function ambulatory_outer_arch(left_pillar, right_pillar;
@@ -1829,7 +1979,7 @@ function ambulatory_outer_arch(left_pillar, right_pillar;
                                 height = AMBULATORY_OUTER_WALL_HEIGHT,
                                 excess = 1,
                                 offset = 0)
-    standing_arch_wall_block(left_pillar, right_pillar, depth, height, excess, offset)
+    standing_arch_block(left_pillar, right_pillar, depth, height, excess, offset)
 end
 
 function ambulatory_middle_arch(left_pillar, right_pillar;
@@ -1837,7 +1987,7 @@ function ambulatory_middle_arch(left_pillar, right_pillar;
                                     height = AMBULATORY_MIDDLE_WALL_HEIGHT,
                                     excess = 1,
                                     offset = 0)
-    standing_arch_wall_block(left_pillar, right_pillar, depth, height, excess, offset)
+    standing_arch_block(left_pillar, right_pillar, depth, height, excess, offset)
 end
 
 # Wall types:
@@ -1861,7 +2011,7 @@ function set_pillars_wall_attributes(left_pillar, right_pillar, wall, wall_type_
     direction = right_pillar_center - left_pillar_center
     normalized_direction = direction / norm(direction)
 
-    if wall_type_instantiator === ambulatory_outer_arch
+    if wall_type_instantiator === ambulatory_outer_arch || wall_type_instantiator === ambulatory_inner_window
         set_pillar_east_wall(left_pillar, wall)
         set_pillar_west_wall(right_pillar, wall)
     elseif wall_type_instantiator === ambulatory_middle_arch
@@ -1890,6 +2040,16 @@ function right_pillar_increment_column_range_instantiator(pillars, wall_type_ins
     for column in column_range
         left_pillar = pillars[left_pillars_row_index, column]
         right_pillar = pillars[right_pillars_row_index, column + 1]
+        model = wall_type_instantiator(left_pillar, right_pillar)
+        wall_type = Wall(model, left_pillar, right_pillar)
+        set_pillars_wall_attributes(left_pillar, right_pillar, wall_type, wall_type_instantiator)
+    end
+end
+
+function right_pillar_increment_row_range_instantiator(pillars, wall_type_instantiator, row_range, left_pillars_column_index, right_pillars_column_index)
+    for row in row_range
+        left_pillar = pillars[row, left_pillars_column_index]
+        right_pillar = pillars[row + 1, right_pillars_column_index]
         model = wall_type_instantiator(left_pillar, right_pillar)
         wall_type = Wall(model, left_pillar, right_pillar)
         set_pillars_wall_attributes(left_pillar, right_pillar, wall_type, wall_type_instantiator)
@@ -1985,6 +2145,30 @@ function instantiate_aisles_inner_walls(pillars)
                                 SE_AISLE_INNER_WALL_LEFT_PILLARS[ROW_INDEX], SE_AISLE_INNER_WALL_RIGHT_PILLARS[ROW_INDEX])
 end
 
+function instantiate_aisles_inner_windows(pillars)
+    right_pillar_increment_column_range_instantiator(pillars, aisle_inner_window, NW_AISLE_INNER_WINDOW_WALL_LEFT_PILLARS[COLUMN_INDEX],
+                                                        NW_AISLE_INNER_WINDOW_WALL_LEFT_PILLARS[ROW_INDEX], NW_AISLE_INNER_WINDOW_WALL_RIGHT_PILLARS[ROW_INDEX])
+    right_pillar_increment_column_range_instantiator(pillars, aisle_inner_window, NE_AISLE_INNER_WINDOW_WALL_LEFT_PILLARS[COLUMN_INDEX],
+                                                        NE_AISLE_INNER_WINDOW_WALL_LEFT_PILLARS[ROW_INDEX], NE_AISLE_INNER_WINDOW_WALL_RIGHT_PILLARS[ROW_INDEX])
+
+    right_pillar_increment_column_range_instantiator(pillars, aisle_inner_window, SW_AISLE_INNER_WINDOW_WALL_LEFT_PILLARS[COLUMN_INDEX],
+                                                        SW_AISLE_INNER_WINDOW_WALL_LEFT_PILLARS[ROW_INDEX], SW_AISLE_INNER_WINDOW_WALL_RIGHT_PILLARS[ROW_INDEX])
+    right_pillar_increment_column_range_instantiator(pillars, aisle_inner_window, SE_AISLE_INNER_WINDOW_WALL_LEFT_PILLARS[COLUMN_INDEX],
+                                                        SE_AISLE_INNER_WINDOW_WALL_LEFT_PILLARS[ROW_INDEX], SE_AISLE_INNER_WINDOW_WALL_RIGHT_PILLARS[ROW_INDEX])
+end
+
+function instantiate_transept_outer_windows(pillars)
+    right_pillar_increment_row_range_instantiator(pillars, transept_outer_window, WN_TRANSEPT_OUTER_WINDOW_WALL_LEFT_PILLARS[ROW_INDEX],
+                                                        WN_TRANSEPT_OUTER_WINDOW_WALL_LEFT_PILLARS[COLUMN_INDEX], WN_TRANSEPT_OUTER_WINDOW_WALL_RIGHT_PILLARS[COLUMN_INDEX])
+    right_pillar_increment_row_range_instantiator(pillars, transept_outer_window, EN_TRANSEPT_OUTER_WINDOW_WALL_LEFT_PILLARS[ROW_INDEX],
+                                                        EN_TRANSEPT_OUTER_WINDOW_WALL_LEFT_PILLARS[COLUMN_INDEX], EN_TRANSEPT_OUTER_WINDOW_WALL_RIGHT_PILLARS[COLUMN_INDEX])
+
+    right_pillar_increment_row_range_instantiator(pillars, transept_outer_window, WS_TRANSEPT_OUTER_WINDOW_WALL_LEFT_PILLARS[ROW_INDEX],
+                                                        WS_TRANSEPT_OUTER_WINDOW_WALL_LEFT_PILLARS[COLUMN_INDEX], WS_TRANSEPT_OUTER_WINDOW_WALL_RIGHT_PILLARS[COLUMN_INDEX])
+    right_pillar_increment_row_range_instantiator(pillars, transept_outer_window, ES_TRANSEPT_OUTER_WINDOW_WALL_LEFT_PILLARS[ROW_INDEX],
+                                                        ES_TRANSEPT_OUTER_WINDOW_WALL_LEFT_PILLARS[COLUMN_INDEX], ES_TRANSEPT_OUTER_WINDOW_WALL_RIGHT_PILLARS[COLUMN_INDEX])
+end
+
 function instantiate_transept_outer_walls(pillars)
     row_range_instantiator(pillars, transept_outer_arch, WN_TRANSEPT_OUTER_WALL_LEFT_PILLARS[ROW_INDEX],
                                 WN_TRANSEPT_OUTER_WALL_LEFT_PILLARS[COLUMN_INDEX], WN_TRANSEPT_OUTER_WALL_RIGHT_PILLARS[COLUMN_INDEX])
@@ -1997,9 +2181,42 @@ function instantiate_transept_outer_walls(pillars)
                                 ES_TRANSEPT_OUTER_WALL_LEFT_PILLARS[COLUMN_INDEX], ES_TRANSEPT_OUTER_WALL_RIGHT_PILLARS[COLUMN_INDEX])
 end
 
+function instantiate_transept_inner_windows(pillars)
+    right_pillar_increment_row_range_instantiator(pillars, transept_inner_window, WN_TRANSEPT_INNER_WINDOW_WALL_LEFT_PILLARS[ROW_INDEX],
+                                                        WN_TRANSEPT_INNER_WINDOW_WALL_LEFT_PILLARS[COLUMN_INDEX], WN_TRANSEPT_INNER_WINDOW_WALL_RIGHT_PILLARS[COLUMN_INDEX])
+    right_pillar_increment_row_range_instantiator(pillars, transept_inner_window, EN_TRANSEPT_INNER_WINDOW_WALL_LEFT_PILLARS[ROW_INDEX],
+                                                        EN_TRANSEPT_INNER_WINDOW_WALL_LEFT_PILLARS[COLUMN_INDEX], EN_TRANSEPT_INNER_WINDOW_WALL_RIGHT_PILLARS[COLUMN_INDEX])
+
+    right_pillar_increment_row_range_instantiator(pillars, transept_inner_window, WS_TRANSEPT_INNER_WINDOW_WALL_LEFT_PILLARS[ROW_INDEX],
+                                                        WS_TRANSEPT_INNER_WINDOW_WALL_LEFT_PILLARS[COLUMN_INDEX], WS_TRANSEPT_INNER_WINDOW_WALL_RIGHT_PILLARS[COLUMN_INDEX])
+    right_pillar_increment_row_range_instantiator(pillars, transept_inner_window, ES_TRANSEPT_INNER_WINDOW_WALL_LEFT_PILLARS[ROW_INDEX],
+                                                        ES_TRANSEPT_INNER_WINDOW_WALL_LEFT_PILLARS[COLUMN_INDEX], ES_TRANSEPT_INNER_WINDOW_WALL_RIGHT_PILLARS[COLUMN_INDEX])
+end
+
+function instantiate_ambulatory_inner_windows(pillars)
+    right_pillar_increment_column_range_instantiator(pillars, ambulatory_inner_window, TOP_AMBULATORY_INNER_WINDOW_WALL_LEFT_PILLARS[COLUMN_INDEX],
+                                                        TOP_AMBULATORY_INNER_WINDOW_WALL_LEFT_PILLARS[ROW_INDEX], TOP_AMBULATORY_INNER_WINDOW_WALL_RIGHT_PILLARS[ROW_INDEX])
+
+    left_pillar = pillars[MIDDLE_AMBULATORY_INNER_WINDOW_WALL_LEFT_PILLAR[ROW_INDEX], MIDDLE_AMBULATORY_INNER_WINDOW_WALL_LEFT_PILLAR[COLUMN_INDEX]]
+    right_pillar = pillars[MIDDLE_AMBULATORY_INNER_WINDOW_WALL_RIGHT_PILLAR[ROW_INDEX], MIDDLE_AMBULATORY_INNER_WINDOW_WALL_RIGHT_PILLAR[COLUMN_INDEX]]
+    model = ambulatory_inner_window(left_pillar, right_pillar)
+    wall_type = Wall(model, left_pillar, right_pillar)
+    set_pillars_wall_attributes(left_pillar, right_pillar, wall_type, ambulatory_inner_window)
+
+    right_pillar_increment_column_range_instantiator(pillars, ambulatory_inner_window, BOTTOM_AMBULATORY_INNER_WINDOW_WALL_LEFT_PILLARS[COLUMN_INDEX],
+                                                        BOTTOM_AMBULATORY_INNER_WINDOW_WALL_LEFT_PILLARS[ROW_INDEX], BOTTOM_AMBULATORY_INNER_WINDOW_WALL_RIGHT_PILLARS[ROW_INDEX])
+end
+
 function instantiate_ambulatory_outer_walls(pillars)
     right_pillar_increment_column_range_instantiator(pillars, ambulatory_outer_arch, TOP_AMBULATORY_OUTER_WALL_LEFT_PILLARS[COLUMN_INDEX],
                                                         TOP_AMBULATORY_OUTER_WALL_LEFT_PILLARS[ROW_INDEX], TOP_AMBULATORY_OUTER_WALL_RIGHT_PILLARS[ROW_INDEX])
+
+    left_pillar = pillars[MIDDLE_AMBULATORY_OUTER_WALL_LEFT_PILLAR[ROW_INDEX], MIDDLE_AMBULATORY_OUTER_WALL_LEFT_PILLAR[COLUMN_INDEX]]
+    right_pillar = pillars[MIDDLE_AMBULATORY_OUTER_WALL_RIGHT_PILLAR[ROW_INDEX], MIDDLE_AMBULATORY_OUTER_WALL_RIGHT_PILLAR[COLUMN_INDEX]]
+    model = ambulatory_outer_arch(left_pillar, right_pillar)
+    wall_type = Wall(model, left_pillar, right_pillar)
+    set_pillars_wall_attributes(left_pillar, right_pillar, wall_type, ambulatory_outer_arch)
+
     right_pillar_increment_column_range_instantiator(pillars, ambulatory_outer_arch, BOTTOM_AMBULATORY_OUTER_WALL_LEFT_PILLARS[COLUMN_INDEX],
                                                         BOTTOM_AMBULATORY_OUTER_WALL_LEFT_PILLARS[ROW_INDEX], BOTTOM_AMBULATORY_OUTER_WALL_RIGHT_PILLARS[ROW_INDEX])
 end
@@ -2018,7 +2235,11 @@ function instantiate_all_walls(pillars)
     instantiate_aisles_outer_walls(pillars)
     instantiate_aisles_middle_walls(pillars)
     instantiate_aisles_inner_walls(pillars)
+    instantiate_aisles_inner_windows(pillars)
+    instantiate_transept_outer_windows(pillars)
     instantiate_transept_outer_walls(pillars)
+    instantiate_transept_inner_windows(pillars)
+    instantiate_ambulatory_inner_windows(pillars)
     instantiate_ambulatory_outer_walls(pillars)
     instantiate_ambulatory_middle_walls(pillars)
 end
@@ -2028,8 +2249,15 @@ end
 # == PLAYGROUND == #
 pillars = Array{Union{Pillar, Nothing}}(nothing, 10, 17)
 
-instantiate_all_pillars(pillars)
-instantiate_all_walls(pillars)
+function measure_time(f, args...)
+    @time f(args...)
+end
+
+measure_time(instantiate_all_pillars, pillars)
+measure_time(instantiate_all_walls, pillars)
+
+#instantiate_all_pillars(pillars)
+#instantiate_all_walls(pillars)
 # == PLAYGROUND == #
 
 #cena = surface_circle(u0(), 2)
