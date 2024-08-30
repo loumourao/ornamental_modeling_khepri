@@ -929,6 +929,10 @@ function Pillar(model, row, column, center, orientation, width, depth, height)
     Pillar(model, row, column, center, orientation, width, depth, height, nothing, nothing, nothing, nothing)
 end
 
+function Pillar(model, center, width, depth, height)
+    Pillar(model, nothing, nothing, center, nothing, width, depth, height, nothing, nothing, nothing, nothing)
+end
+
 function get_pillar_center(pillar)
     return pillar.center
 end
@@ -1901,17 +1905,28 @@ function instantiate_walls_info()
     assign_walls_info_key_value(:TRANSEPT_BUTTRESS_WALLS, transept_buttress_walls)
     # == TRANSEPT BUTTRESS WALLS == #
 
-    # == AMBULATORY BUTTRESS WALLS == #
-    ambulatory_buttress_wall_height = aisle_buttress_wall_height
+    # == AMBULATORY BUTTRESS HORIZONTAL WALLS == #
+    ambulatory_buttress_horizontal_wall_height = aisle_buttress_wall_height
 
-    s_ambulatory_buttress_walls = (first(ambulatory_row_range), ambulatory_col_range)
-    n_ambulatory_buttress_walls = (last(ambulatory_row_range), ambulatory_col_range)
-    ambulatory_buttress_walls = [s_ambulatory_buttress_walls, n_ambulatory_buttress_walls]
+    s_ambulatory_buttress_horizontal_walls = [(first(ambulatory_row_range), ambulatory_col_range)]
+    n_ambulatory_buttress_horizontal_walls = [(last(ambulatory_row_range), ambulatory_col_range)]
 
-    assign_walls_info_key_value(:AMBULATORY_BUTTRESS_WALL_HEIGHT, ambulatory_buttress_wall_height)
-    assign_walls_info_key_value(:AMBULATORY_BUTTRESS_WALLS, ambulatory_buttress_walls)
-    # == AMBULATORY BUTTRESS WALLS == #
+    assign_walls_info_key_value(:AMBULATORY_BUTTRESS_HORIZONTAL_WALL_HEIGHT, ambulatory_buttress_horizontal_wall_height)
+    assign_walls_info_key_value(:S_AMBULATORY_BUTTRESS_HORIZONTAL_WALLS, s_ambulatory_buttress_horizontal_walls)
+    assign_walls_info_key_value(:N_AMBULATORY_BUTTRESS_HORIZONTAL_WALLS, n_ambulatory_buttress_horizontal_walls)
+    # == AMBULATORY BUTTRESS HORIZONTAL WALLS == #
+
+    # == AMBULATORY BUTTRESS VERTICAL WALLS == #
+    ambulatory_buttress_vertical_wall_height = aisle_buttress_wall_height
+
+    s_ambulatory_buttress_vertical_walls = (ambulatory_row_range[2], ambulatory_col_range)
+    n_ambulatory_buttress_vertical_walls = (ambulatory_row_range[end-1], ambulatory_col_range)
+    ambulatory_buttress_vertical_walls = [s_ambulatory_buttress_vertical_walls, n_ambulatory_buttress_vertical_walls]
     
+    assign_walls_info_key_value(:AMBULATORY_BUTTRESS_VERTICAL_WALL_HEIGHT, ambulatory_buttress_vertical_wall_height)
+    assign_walls_info_key_value(:AMBULATORY_BUTTRESS_VERTICAL_WALLS, ambulatory_buttress_vertical_walls)
+    # == AMBULATORY BUTTRESS VERTICAL WALLS == #
+
     # == AISLE OUTER PILLAR HORIZONTAL WALLS == #
     aisle_outer_pillar_horizontal_wall_height = aisle_buttress_wall_height
 
@@ -2078,6 +2093,26 @@ function get_transept_buttress_walls()
     return get_walls_info_value(:TRANSEPT_BUTTRESS_WALLS)
 end
 
+function get_ambulatory_buttress_horizontal_wall_height()
+    return WALLS_INFO[:AMBULATORY_BUTTRESS_HORIZONTAL_WALL_HEIGHT]
+end
+
+function get_s_ambulatory_buttress_horizontal_walls()
+    return WALLS_INFO[:S_AMBULATORY_BUTTRESS_HORIZONTAL_WALLS]
+end
+
+function get_n_ambulatory_buttress_horizontal_walls()
+    return WALLS_INFO[:N_AMBULATORY_BUTTRESS_HORIZONTAL_WALLS]
+end
+
+function get_ambulatory_buttress_vertical_wall_height()
+    return WALLS_INFO[:AMBULATORY_BUTTRESS_VERTICAL_WALL_HEIGHT]
+end
+
+function get_ambulatory_buttress_vertical_walls()
+    return WALLS_INFO[:AMBULATORY_BUTTRESS_VERTICAL_WALLS]
+end
+
 function get_aisle_outer_pillar_horizontal_wall_height()
     return get_walls_info_value(:AISLE_OUTER_PILLAR_HORIZONTAL_WALL_HEIGHT)
 end
@@ -2169,44 +2204,16 @@ end
 # == WALLS == #
 
 # == UTILITIES == #
-function get_opposite_orientation(orientation)
-    if orientation == NORTH
-        return SOUTH
-    elseif orientation == SOUTH
-        return NORTH
-    elseif orientation == WEST
-        return EAST
-    elseif orientation == EAST
-        return WEST
-    end
-
-    return nothing
-end
-
-function get_ccw_perpendicular_orientation(orientation)
-    if orientation == NORTH
-        return WEST
-    elseif orientation == SOUTH
-        return EAST
-    elseif orientation == WEST
-        return SOUTH
-    elseif orientation == EAST
-        return NORTH
-    end
-
-    return nothing
-end
-
-function get_wall_anchors(left_pillar, right_pillar)
+function get_wall_anchors(left_pillar, right_pillar; offset = 0)
     left_pillar_center = get_pillar_center(left_pillar)
-    left_pillar_width = get_pillar_width(left_pillar)
     right_pillar_center = get_pillar_center(right_pillar)
-    right_pillar_width = get_pillar_width(right_pillar)
-
     left_to_right_pillar_vector = right_pillar_center - left_pillar_center
+    
+    left_anchor_offset = get_pillar_width(left_pillar) / 2 + offset
+    right_anchor_offset = get_pillar_width(right_pillar) / 2 + offset
 
-    left_anchor = displace_point_by_vector(left_pillar_center, left_to_right_pillar_vector, left_pillar_width / 2)
-    right_anchor = displace_point_by_vector(right_pillar_center, left_to_right_pillar_vector, -right_pillar_width / 2)
+    left_anchor = displace_point_by_vector(left_pillar_center, left_to_right_pillar_vector, left_anchor_offset)
+    right_anchor = displace_point_by_vector(right_pillar_center, left_to_right_pillar_vector, -right_anchor_offset)
 
     return (left_anchor = left_anchor, right_anchor = right_anchor)
 end
@@ -2282,83 +2289,83 @@ function standing_lancet_arch_top_block(left_point, right_point, depth, excess)
     return nothing
 end
 
-function standing_wall_block(left_anchor, right_anchor, depth, height)
-    wall_base_medial_line = line(left_anchor, right_anchor)
+function wall_block_base(left_pillar, right_pillar, offset)
+    wall_depth = get_pillar_depth(left_pillar)
 
+    anchors = get_wall_anchors(left_pillar, right_pillar; offset = offset)
+    left_anchor = anchors.left_anchor
+    right_anchor = anchors.right_anchor
     left_to_right_anchor_vector = right_anchor - left_anchor
-    wall_depth_vector = normalize_vector(get_perpendicular_to_vectors(left_to_right_anchor_vector, GROWING_HEIGHT_DIRECTION)) * depth / 2
 
+    wall_base_medial_line = line(left_anchor, right_anchor)
+    wall_depth_vector = normalize_vector(get_perpendicular_to_vectors(left_to_right_anchor_vector, GROWING_HEIGHT_DIRECTION)) * wall_depth / 2
     wall_base_first_half = extrusion(wall_base_medial_line, wall_depth_vector)
     wall_base_second_half = extrusion(wall_base_medial_line, -wall_depth_vector)
-    wall_base = union(wall_base_first_half, wall_base_second_half)
-
-    wall = extrusion(wall_base, GROWING_HEIGHT_DIRECTION * height)
-
-    return wall
+    
+    return union(wall_base_first_half, wall_base_second_half)
 end
 
-function standing_hollow_wall_block(left_anchor, right_anchor, depth, height, hole_height, offset)
-    wall = standing_wall_block(left_anchor, right_anchor, depth, height)
+function standing_wall_block(left_pillar, right_pillar, height; offset = 0)
+    return extrusion(wall_block_base(left_pillar, right_pillar, offset), GROWING_HEIGHT_DIRECTION * height)
+end
 
-    left_to_right_anchor_vector = right_anchor - left_anchor
-    left_anchor_offset = displace_point_by_vector(left_anchor, left_to_right_anchor_vector, offset)
-    right_anchor_offset = displace_point_by_vector(right_anchor, left_to_right_anchor_vector, -offset)
-
-    hole = standing_wall_block(left_anchor_offset, right_anchor_offset, depth, hole_height)
-
+function standing_hollow_wall_block(left_pillar, right_pillar, height, hole_height; offset = 0)
+    wall = standing_wall_block(left_pillar, right_pillar, height)
+    hole = standing_wall_block(left_pillar, right_pillar, hole_height; offset = offset)
     return subtraction(wall, hole)
 end
 
-function standing_arch_block(left_pillar, right_pillar, depth, height, arch_excess, offset)
+function standing_arch_block(left_pillar, right_pillar, height, arch_excess; offset = 0)
+    wall_depth = get_pillar_depth(left_pillar)
+
     wall_anchors = get_wall_anchors(left_pillar, right_pillar)
-    left_anchor = wall_anchors.left_anchor
-    right_anchor = wall_anchors.right_anchor
+    wall_left_anchor = wall_anchors.left_anchor
 
-    left_to_right_anchor_vector = right_anchor - left_anchor
-    left_anchor_offset = displace_point_by_vector(left_anchor, left_to_right_anchor_vector, offset)
-    right_anchor_offset = displace_point_by_vector(right_anchor, left_to_right_anchor_vector, -offset)
+    hole_anchors = get_wall_anchors(left_pillar, right_pillar; offset = offset)
+    hole_left_anchor = hole_anchors.left_anchor
+    hole_right_anchor = hole_anchors.right_anchor
 
-    arch_top_height = get_arch_top_height(left_anchor_offset, right_anchor_offset, arch_excess)
-    wall_hole_height = height - arch_top_height - distance(get_pillar_center(left_pillar), left_anchor) * 2
+    arch_top_height = get_arch_top_height(hole_left_anchor, hole_right_anchor, arch_excess)
+    wall_hole_height = height - arch_top_height - distance(get_pillar_center(left_pillar), wall_left_anchor) * 2
 
-    hollow_wall = standing_hollow_wall_block(left_anchor, right_anchor, depth, height, wall_hole_height, offset)
-    arch_top = standing_lancet_arch_top_block(left_anchor_offset + GROWING_HEIGHT_DIRECTION * wall_hole_height, 
-                                                right_anchor_offset + GROWING_HEIGHT_DIRECTION * wall_hole_height, 
-                                                    depth, arch_excess)
-    arch_wall = subtraction(hollow_wall, arch_top)
+    hollow_wall = standing_hollow_wall_block(left_pillar, right_pillar, height, wall_hole_height; offset = offset)
+    arch_top = standing_lancet_arch_top_block(hole_left_anchor + GROWING_HEIGHT_DIRECTION * wall_hole_height, 
+                                                hole_right_anchor + GROWING_HEIGHT_DIRECTION * wall_hole_height, 
+                                                    wall_depth, arch_excess)
 
-    return arch_wall
+    return subtraction(hollow_wall, arch_top)
 end
 
-function standing_window_wall_block(left_pillar, right_pillar, depth, height, 
-                                        arch_excess, vertical_distance_to_sub_arch, window_style_instantiator, offset)
+function standing_window_wall_block(left_pillar, right_pillar, height, 
+                                        arch_excess, vertical_distance_to_sub_arch, window_style_instantiator;
+                                            window_to_wall_general_offset_ratio = 8)
+    wall_depth = get_pillar_depth(left_pillar)
+
     wall_anchors = get_wall_anchors(left_pillar, right_pillar)
-    left_anchor = wall_anchors.left_anchor
-    right_anchor = wall_anchors.right_anchor
+    wall_left_anchor = wall_anchors.left_anchor
+    wall_right_anchor = wall_anchors.right_anchor
+    wall_left_to_right_anchor_vector = wall_right_anchor - wall_left_anchor
 
-    left_to_right_anchor_vector = right_anchor - left_anchor
-    left_anchor_offset = displace_point_by_vector(left_anchor, left_to_right_anchor_vector, offset)
-    right_anchor_offset = displace_point_by_vector(right_anchor, left_to_right_anchor_vector, -offset)
-    window_to_wall_general_offset = distance(left_anchor_offset, right_anchor_offset) / 8
+    window_to_wall_general_offset = distance(wall_left_anchor, wall_right_anchor) / window_to_wall_general_offset_ratio
 
-    bottom_left_corner = displace_point_by_vector(left_anchor_offset, left_to_right_anchor_vector, 
-                                                    window_to_wall_general_offset) + GROWING_HEIGHT_DIRECTION * window_to_wall_general_offset
-    bottom_right_corner = displace_point_by_vector(right_anchor_offset, left_to_right_anchor_vector,
-                                                    -window_to_wall_general_offset) + GROWING_HEIGHT_DIRECTION * window_to_wall_general_offset
+    bottom_left_corner = displace_point_by_vector(wall_left_anchor, wall_left_to_right_anchor_vector, window_to_wall_general_offset) + GROWING_HEIGHT_DIRECTION * window_to_wall_general_offset
+    bottom_right_corner = displace_point_by_vector(wall_right_anchor, wall_left_to_right_anchor_vector, -window_to_wall_general_offset) + GROWING_HEIGHT_DIRECTION * window_to_wall_general_offset
 
     arch_top_height = get_arch_top_height(bottom_left_corner, bottom_right_corner, arch_excess)
 
-    upper_left_corner = bottom_left_corner + GROWING_HEIGHT_DIRECTION * (height - arch_top_height - window_to_wall_general_offset * 2)
-    upper_right_corner = bottom_right_corner + GROWING_HEIGHT_DIRECTION * (height - arch_top_height - window_to_wall_general_offset * 2)
+    bottom_to_upper_corners_vertical_distance = height - arch_top_height - window_to_wall_general_offset * 2
+    upper_left_corner = bottom_left_corner + GROWING_HEIGHT_DIRECTION * bottom_to_upper_corners_vertical_distance
+    upper_right_corner = bottom_right_corner + GROWING_HEIGHT_DIRECTION * bottom_to_upper_corners_vertical_distance
     
-    window_body_hole = standing_wall_block(bottom_left_corner, bottom_right_corner, depth, height - window_to_wall_general_offset * 2 - arch_top_height)
-    window_arch_hole = standing_lancet_arch_top_block(upper_left_corner, upper_right_corner, depth, arch_excess)
+    window_body_hole = move(standing_wall_block(left_pillar, right_pillar, bottom_to_upper_corners_vertical_distance;
+                                                    offset = window_to_wall_general_offset), 
+                                                        GROWING_HEIGHT_DIRECTION * window_to_wall_general_offset)
+    window_arch_hole = standing_lancet_arch_top_block(upper_left_corner, upper_right_corner, wall_depth, arch_excess)
     window_hole = union(window_body_hole, window_arch_hole)
 
-    wall = standing_wall_block(left_anchor_offset, right_anchor_offset, depth, height)
+    wall = standing_wall_block(left_pillar, right_pillar, height)
     window_wall = subtraction(wall, window_hole)
-    
-    # WINDOW STUFF TO BE REVISED OR SIMPLIFIED OR MODULARIZED - WHATEVER'S BEST UNDER TIME CONSTRAINTS
+
     planar_gothic_window_width = distance(bottom_left_corner, bottom_right_corner)
     planar_gothic_window_height_without_arch = distance(upper_left_corner, bottom_left_corner)
 
@@ -2368,13 +2375,11 @@ function standing_window_wall_block(left_pillar, right_pillar, depth, height,
 
     planar_gothic_window = window_style_instantiator(planar_bottom_left_corner, planar_upper_right_corner, 
                                                         arch_excess, vertical_distance_to_sub_arch, 
-                                                            depth / 2, depth / 2).three_dimensional_window
+                                                            wall_depth / 2, wall_depth / 2).three_dimensional_window
 
-    # Such that it is now standing
     planar_gothic_window = rotate(planar_gothic_window, π/2, u0(), EAST)
 
-    # Such that it now shares the same orientation as that of the wall to which it belongs
-    wall_base_vector = right_anchor_offset - left_anchor_offset
+    wall_base_vector = wall_right_anchor - wall_left_anchor
     window_base_vector = planar_upper_right_corner - planar_upper_left_corner
     planar_gothic_window = rotate(planar_gothic_window, angle_between_ccw_oriented(wall_base_vector, window_base_vector), u0(), DECREASING_HEIGHT_DIRECTION)
     planar_gothic_window = move(planar_gothic_window, intermediate_loc(upper_left_corner, upper_right_corner) - u0())
@@ -2382,67 +2387,114 @@ function standing_window_wall_block(left_pillar, right_pillar, depth, height,
     return union(window_wall, planar_gothic_window)
 end
 
-function standing_arch_wall_window_block(left_pillar, right_pillar, depth, 
-                                            arch_block_height, blank_block_height, window_block_height, 
-                                                arch_excess, vertical_distance_to_sub_arch, window_style_instantiator, offset)
-    wall_anchors = get_wall_anchors(left_pillar, right_pillar)
-    left_anchor = wall_anchors.left_anchor
-    right_anchor = wall_anchors.right_anchor
-
-    left_to_right_anchor_vector = right_anchor - left_anchor
-    left_anchor_offset = displace_point_by_vector(left_anchor, left_to_right_anchor_vector, offset)
-    right_anchor_offset = displace_point_by_vector(right_anchor, left_to_right_anchor_vector, -offset)
-
-    arch_block = standing_arch_block(left_pillar, right_pillar, depth, arch_block_height, arch_excess, offset)
-    blank_block = standing_wall_block(left_anchor_offset, right_anchor_offset, depth, blank_block_height)
-    window_block = standing_window_wall_block(left_pillar, right_pillar, depth, window_block_height, 
-                                            arch_excess, vertical_distance_to_sub_arch, window_style_instantiator, offset)
+function standing_arch_wall_window_block(left_pillar, right_pillar,
+                                            arch_block_height, blank_block_height, window_block_height,
+                                                arch_excess, vertical_distance_to_sub_arch, window_style_instantiator;
+                                                    offset = 0)
+    arch_block = standing_arch_block(left_pillar, right_pillar, arch_block_height, arch_excess; offset = offset)
+    blank_block = standing_wall_block(left_pillar, right_pillar, blank_block_height)
+    window_block = standing_window_wall_block(left_pillar, right_pillar, window_block_height, 
+                                                arch_excess, vertical_distance_to_sub_arch, window_style_instantiator)
     blank_block = move(blank_block, GROWING_HEIGHT_DIRECTION * arch_block_height)
     window_block = move(window_block, GROWING_HEIGHT_DIRECTION * (arch_block_height + blank_block_height))
 
     return union(arch_block, blank_block, window_block)
 end
 
+function radiating_chapel(left_pillar, right_pillar, n_walls, ambulatory_section, height,
+                            arch_excess, vertical_distance_to_sub_arch, window_style_instantiator)
+    wall_anchors = get_wall_anchors(left_pillar, right_pillar)
+    left_anchor = wall_anchors.left_anchor
+    right_anchor = wall_anchors.right_anchor
+
+    radiating_chapel_center = intermediate_loc(left_anchor, right_anchor)
+    radiating_chapel_radius = distance(left_anchor, radiating_chapel_center)
+
+    radiating_chapel_start_vector = ambulatory_section == SOUTH ? left_anchor - radiating_chapel_center : right_anchor - radiating_chapel_center
+    radiating_chapel_end_vector = ambulatory_section == SOUTH ? right_anchor - radiating_chapel_center : left_anchor - radiating_chapel_center
+    radiating_chapel_start_angle = atan(radiating_chapel_start_vector.y, radiating_chapel_start_vector.x)
+    radiating_chapel_end_angle = atan(radiating_chapel_end_vector.y, radiating_chapel_end_vector.x)
+    radiating_chapel_angle = angle_between_ccw_oriented(radiating_chapel_start_vector, radiating_chapel_end_vector)
+    Δθ = radiating_chapel_angle / n_walls
+    current_angle = radiating_chapel_start_angle
+    current_left_pillar = ambulatory_section == SOUTH ? left_pillar : right_pillar
+    current_right_pillar = nothing
+
+    while !isapprox(current_angle, radiating_chapel_end_angle - Δθ)
+        current_right_pillar_center = radiating_chapel_center + vpol(radiating_chapel_radius, current_angle + Δθ)
+        current_right_pillar_model = ambulatory_outer_pillar(current_right_pillar_center, nothing; height = height)
+        current_right_pillar = Pillar(current_right_pillar_model, current_right_pillar_center,
+                                        get_ambulatory_outer_pillar_width(), get_ambulatory_outer_pillar_depth(), height)
+        standing_window_wall_block(current_left_pillar, current_right_pillar, height,
+                                    arch_excess, vertical_distance_to_sub_arch, window_style_instantiator)
+        current_left_pillar = deepcopy(current_right_pillar)
+        current_angle += Δθ
+    end
+
+    current_right_pillar = ambulatory_section == SOUTH ? right_pillar : left_pillar
+
+    return standing_window_wall_block(current_left_pillar, current_right_pillar, height,
+                                        arch_excess, vertical_distance_to_sub_arch, window_style_instantiator)
+end
+
 function aisle_buttress_wall(left_pillar, right_pillar;
-                                depth = get_pillar_depth(left_pillar),
                                 height = get_aisle_buttress_wall_height(),
                                 excess = 1,
                                 vertical_distance_to_sub_arch = 1,
-                                window_style_instantiator = Gothic_Window_First_Style,
-                                offset = 0)
-    standing_window_wall_block(left_pillar, right_pillar, depth, height,
-                                excess, vertical_distance_to_sub_arch, window_style_instantiator, offset)
+                                window_style_instantiator = Gothic_Window_First_Style)
+    standing_window_wall_block(left_pillar, right_pillar, height, 
+                                excess, vertical_distance_to_sub_arch, window_style_instantiator)
 end
 
 function transept_buttress_wall(left_pillar, right_pillar;
-                                    depth = get_pillar_depth(left_pillar),
                                     height = get_transept_buttress_wall_height(),
                                     excess = 1,
                                     vertical_distance_to_sub_arch = 1,
-                                    window_style_instantiator = Gothic_Window_First_Style,
-                                    offset = 0)
-    standing_window_wall_block(left_pillar, right_pillar, depth, height,
-                                excess, vertical_distance_to_sub_arch, window_style_instantiator, offset)
+                                    window_style_instantiator = Gothic_Window_First_Style)
+    standing_window_wall_block(left_pillar, right_pillar, height,
+                                excess, vertical_distance_to_sub_arch, window_style_instantiator)
+end
+
+function s_ambulatory_buttress_horizontal_wall(left_pillar, right_pillar;
+                                                n_walls = 3,
+                                                height = get_ambulatory_buttress_horizontal_wall_height(),
+                                                excess = 1,
+                                                vertical_distance_to_sub_arch = 1,
+                                                window_style_instantiator = Gothic_Window_First_Style)
+    radiating_chapel(left_pillar, right_pillar, n_walls, SOUTH, height,
+                        excess, vertical_distance_to_sub_arch, window_style_instantiator)
+end
+
+function n_ambulatory_buttress_horizontal_wall(left_pillar, right_pillar;
+                                                n_walls = 3,
+                                                height = get_ambulatory_buttress_horizontal_wall_height(),
+                                                excess = 1,
+                                                vertical_distance_to_sub_arch = 1,
+                                                window_style_instantiator = Gothic_Window_First_Style)
+    radiating_chapel(left_pillar, right_pillar, n_walls, NORTH, height,
+                        excess, vertical_distance_to_sub_arch, window_style_instantiator)
+end
+
+function ambulatory_buttress_vertical_wall(left_pillar, right_pillar;
+                                            height = get_ambulatory_buttress_vertical_wall_height())
+    standing_wall_block(left_pillar, right_pillar, height)
 end
 
 function aisle_outer_pillar_horizontal_wall(left_pillar, right_pillar;
-                                                depth = get_pillar_width(left_pillar),
                                                 height = get_aisle_outer_pillar_horizontal_wall_height(),
                                                 excess = 1,
                                                 offset = 0)
-    standing_arch_block(left_pillar, right_pillar, depth, height, excess, offset)
+    standing_arch_block(left_pillar, right_pillar, height, excess; offset = offset)
 end
 
 function aisle_outer_pillar_vertical_wall(left_pillar, right_pillar;
-                                            depth = get_pillar_depth(left_pillar),
                                             height = get_aisle_outer_pillar_vertical_wall_height(),
                                             excess = 1,
                                             offset = 0)
-    standing_arch_block(left_pillar, right_pillar, depth, height, excess, offset)
+    standing_arch_block(left_pillar, right_pillar, height, excess; offset = offset)
 end
 
 function aisle_inner_pillar_horizontal_wall(left_pillar, right_pillar;
-                                                depth = get_pillar_width(left_pillar),
                                                 height = get_aisle_inner_pillar_horizontal_wall_height(),
                                                 excess = 1,
                                                 vertical_distance_to_sub_arch = 1,
@@ -2451,45 +2503,40 @@ function aisle_inner_pillar_horizontal_wall(left_pillar, right_pillar;
     arch_block_height = height * 0.4318
     blank_block_height = (height - arch_block_height) / 3
     window_block_height = height - arch_block_height - blank_block_height
-    standing_arch_wall_window_block(left_pillar, right_pillar, depth, 
+    standing_arch_wall_window_block(left_pillar, right_pillar,
                                         arch_block_height, blank_block_height, window_block_height,
-                                            excess, vertical_distance_to_sub_arch, window_style_instantiator, offset)
+                                            excess, vertical_distance_to_sub_arch, window_style_instantiator; offset = offset)
 end
 
 function aisle_inner_pillar_vertical_wall(left_pillar, right_pillar;
-                                            depth = get_pillar_depth(left_pillar),
                                             height = get_aisle_inner_pillar_vertical_wall_height(),
                                             excess = 1,
                                             offset = 0)
-    standing_arch_block(left_pillar, right_pillar, depth, height, excess, offset)
+    standing_arch_block(left_pillar, right_pillar, height, excess; offset = offset)
 end
 
 function transept_outer_pillar_horizontal_wall(left_pillar, right_pillar;
-                                                depth = get_pillar_depth(left_pillar),
                                                 height = get_transept_outer_pillar_horizontal_wall_height(),
                                                 excess = 1,
                                                 offset = 0)
-    standing_arch_block(left_pillar, right_pillar, depth, height, excess, offset)
+    standing_arch_block(left_pillar, right_pillar, height, excess; offset = offset)
 end
 
 function transept_outer_pillar_vertical_wall(left_pillar, right_pillar;
-                                                depth = get_pillar_depth(left_pillar),
                                                 height = get_transept_outer_pillar_vertical_wall_height(),
                                                 excess = 1,
                                                 offset = 0)
-    standing_arch_block(left_pillar, right_pillar, depth, height, excess, offset)
+    standing_arch_block(left_pillar, right_pillar, height, excess; offset = offset)
 end
 
 function transept_inner_pillar_horizontal_wall(left_pillar, right_pillar;
-                                                depth = get_pillar_depth(left_pillar),
                                                 height = get_aisle_inner_pillar_vertical_wall_height(),
                                                 excess = 1,
                                                 offset = 0)
-    standing_arch_block(left_pillar, right_pillar, depth, height, excess, offset)
+    standing_arch_block(left_pillar, right_pillar, height, excess; offset = offset)
 end
 
 function transept_inner_pillar_vertical_wall(left_pillar, right_pillar;
-                                                depth = get_pillar_width(left_pillar),
                                                 height = get_aisle_inner_pillar_horizontal_wall_height(),
                                                 excess = 1,
                                                 vertical_distance_to_sub_arch = 1,
@@ -2498,29 +2545,26 @@ function transept_inner_pillar_vertical_wall(left_pillar, right_pillar;
     arch_block_height = height * 0.4318
     blank_block_height = (height - arch_block_height) / 3
     window_block_height = height - arch_block_height - blank_block_height
-    standing_arch_wall_window_block(left_pillar, right_pillar, depth, 
+    standing_arch_wall_window_block(left_pillar, right_pillar,
                                         arch_block_height, blank_block_height, window_block_height,
-                                            excess, vertical_distance_to_sub_arch, window_style_instantiator, offset)
+                                            excess, vertical_distance_to_sub_arch, window_style_instantiator; offset = offset)
 end
 
 function ambulatory_outer_pillar_horizontal_wall(left_pillar, right_pillar;
-                                                    depth = get_pillar_depth(left_pillar),
                                                     height = get_ambulatory_outer_pillar_horizontal_wall_height(),
                                                     excess = 1,
                                                     offset = 0)
-    standing_arch_block(left_pillar, right_pillar, depth, height, excess, offset)
+    standing_arch_block(left_pillar, right_pillar, height, excess; offset = offset)
 end
 
 function ambulatory_outer_pillar_vertical_wall(left_pillar, right_pillar;
-                                                    depth = get_pillar_depth(left_pillar),
                                                     height = get_ambulatory_outer_pillar_vertical_wall_height(),
                                                     excess = 1,
                                                     offset = 0)
-    standing_arch_block(left_pillar, right_pillar, depth, height, excess, offset)
+    standing_arch_block(left_pillar, right_pillar, height, excess; offset = offset)
 end
 
 function ambulatory_inner_pillar_wall(left_pillar, right_pillar;
-                                        depth = get_pillar_width(left_pillar),
                                         height = get_ambulatory_inner_pillar_wall_height(),
                                         excess = 1,
                                         vertical_distance_to_sub_arch = 1,
@@ -2529,9 +2573,9 @@ function ambulatory_inner_pillar_wall(left_pillar, right_pillar;
     arch_block_height = height * 0.4318
     blank_block_height = (height - arch_block_height) / 3
     window_block_height = height - arch_block_height - blank_block_height
-    standing_arch_wall_window_block(left_pillar, right_pillar, depth, 
+    standing_arch_wall_window_block(left_pillar, right_pillar,
                                         arch_block_height, blank_block_height, window_block_height,
-                                            excess, vertical_distance_to_sub_arch, window_style_instantiator, offset)
+                                            excess, vertical_distance_to_sub_arch, window_style_instantiator, offset = offset)
 end
 # == MODELERS == #
 
@@ -2585,7 +2629,7 @@ function static_row_col_range_wall_instantiator(pillars, wall_info_collection, w
                     right_pillar = pillars[get_horizontal_hallway_jump_prev_row() + row_delta + 1, col]
                 end
             else
-                right_pillar = pillars[row+1, col]
+                right_pillar = row < get_horizontal_hallway_jump_prev_row() ? pillars[row-1, col] : pillars[row+1, col]               
             end
 
             wall_model = wall_type_instantiator(left_pillar, right_pillar)
@@ -2644,6 +2688,15 @@ function instantiate_transept_buttress_walls(pillars)
     row_range_static_col_wall_instantiator(pillars, get_transept_buttress_walls(), transept_buttress_wall, VERTICAL_WALL)
 end
 
+function instantiate_ambulatory_buttress_horizontal_walls(pillars)
+    static_row_col_range_wall_instantiator(pillars, get_s_ambulatory_buttress_horizontal_walls(), s_ambulatory_buttress_horizontal_wall, HORIZONTAL_WALL)    
+    static_row_col_range_wall_instantiator(pillars, get_n_ambulatory_buttress_horizontal_walls(), n_ambulatory_buttress_horizontal_wall, HORIZONTAL_WALL)    
+end
+
+function instantiate_ambulatory_buttress_vertical_walls(pillars)
+    static_row_col_range_wall_instantiator(pillars, get_ambulatory_buttress_vertical_walls(), ambulatory_buttress_vertical_wall, VERTICAL_WALL)
+end
+
 function instantiate_aisle_outer_pillar_horizontal_walls(pillars)
     row_range_col_range_wall_instantiator(pillars, get_aisle_outer_pillar_horizontal_walls(), aisle_outer_pillar_horizontal_wall, HORIZONTAL_WALL)
 end
@@ -2689,16 +2742,18 @@ function instantiate_ambulatory_inner_pillar_walls(pillars)
 end
 
 function instantiate_all_walls(pillars)
-    #instantiate_aisle_buttress_walls(pillars)
-    #instantiate_transept_buttress_walls(pillars)
-    #instantiate_aisle_outer_pillar_horizontal_walls(pillars)
-    #instantiate_aisle_outer_pillar_vertical_walls(pillars)
-    #instantiate_aisle_inner_pillar_horizontal_walls(pillars)
-    #instantiate_aisle_inner_pillar_vertical_walls(pillars)
-    #instantiate_transept_outer_pillar_horizontal_walls(pillars)
-    #instantiate_transept_outer_pillar_vertical_walls(pillars)
-    #instantiate_transept_inner_pillar_horizontal_walls(pillars)
-    #instantiate_transept_inner_pillar_vertical_walls(pillars)
+    instantiate_aisle_buttress_walls(pillars)
+    instantiate_transept_buttress_walls(pillars)
+    instantiate_ambulatory_buttress_horizontal_walls(pillars)
+    instantiate_ambulatory_buttress_vertical_walls(pillars)
+    instantiate_aisle_outer_pillar_horizontal_walls(pillars)
+    instantiate_aisle_outer_pillar_vertical_walls(pillars)
+    instantiate_aisle_inner_pillar_horizontal_walls(pillars)
+    instantiate_aisle_inner_pillar_vertical_walls(pillars)
+    instantiate_transept_outer_pillar_horizontal_walls(pillars)
+    instantiate_transept_outer_pillar_vertical_walls(pillars)
+    instantiate_transept_inner_pillar_horizontal_walls(pillars)
+    instantiate_transept_inner_pillar_vertical_walls(pillars)
     instantiate_ambulatory_outer_pillar_horizontal_walls(pillars)
     instantiate_ambulatory_outer_pillar_vertical_walls(pillars)
     instantiate_ambulatory_inner_pillar_walls(pillars)
